@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
@@ -40,6 +43,12 @@ func main() {
 		if err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if pkey == nil {
+			log.Println("Auth failed")
+			http.Error(w, "Auth failed", http.StatusForbidden)
 			return
 		}
 
@@ -86,10 +95,36 @@ func main() {
 		w.Write(raw) // nolint
 	})
 
+	m.HandleFunc("/keys", func(w http.ResponseWriter, r *http.Request) {
+		d, err := bdb.GetKeys()
+		if err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(d) // nolint
+	})
+
 	server := &http.Server{
 		Addr:    "localhost:8080",
 		Handler: m,
 	}
 
-	log.Panicln(server.ListenAndServe())
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt)
+
+	go server.ListenAndServe() // nolint
+
+	running := true
+	for running {
+		<-sigs
+		log.Println("Received signal")
+		server.Shutdown(context.Background()) // nolint
+		log.Println("Shutdown web service")
+		badgerdb.Close() // nolint
+		log.Println("Closed database")
+
+		running = false
+	}
 }

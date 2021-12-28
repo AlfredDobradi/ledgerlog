@@ -2,39 +2,32 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"io"
 	"log"
 	"net/http"
-	"os"
 
-	"golang.org/x/crypto/ssh"
+	"github.com/AlfredDobradi/ledgerlog/internal/ssh"
 )
 
 var (
 	privKeyPath string
+	email       string
 )
 
 func main() {
 	flag.StringVar(&privKeyPath, "private-key", "~/.ssh/id_rsa", "Key to SSH private key for signing")
+	flag.StringVar(&email, "email", "", "Email address to auth with")
 	flag.Parse()
 
-	der, err := os.ReadFile(privKeyPath)
-	if err != nil {
-		log.Panicf("Readfile: %v", err)
+	if email == "" {
+		log.Panicln("empty email")
 	}
 
-	key, err := ssh.ParseRawPrivateKey(der)
+	sshClient, err := ssh.NewClient(privKeyPath, email)
 	if err != nil {
-		log.Panicf("Parse: %v", err)
-	}
-
-	signer, err := ssh.NewSignerFromKey(key)
-	if err != nil {
-		log.Panicf("New signer: %v", err)
+		log.Panicf("New SSH Client: %v", err)
 	}
 
 	data := map[string]string{
@@ -45,22 +38,14 @@ func main() {
 		log.Panicf("Marshal: %v", err)
 	}
 
-	signature, err := signer.Sign(rand.Reader, raw)
-	if err != nil {
-		log.Panicf("Sign: %v", err)
-	}
-	rawSig, err := json.Marshal(signature)
-	if err != nil {
-		log.Panicf("Marshal sig: %v", err)
-	}
-	sig := base64.StdEncoding.EncodeToString(rawSig)
-
 	body := bytes.NewBuffer(raw)
 	r, err := http.NewRequest(http.MethodPost, "http://localhost:8080/test", body)
 	if err != nil {
 		log.Panicf("New request: %v", err)
 	}
-	r.Header.Add("X-Signature", sig)
+	if err := sshClient.SignRequest(r, body.Bytes()); err != nil {
+		log.Panicf("Signing request: %v", err)
+	}
 
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
