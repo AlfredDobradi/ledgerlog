@@ -3,6 +3,7 @@ package badgerdb
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	_ssh "github.com/AlfredDobradi/ledgerlog/internal/ssh"
@@ -35,7 +36,8 @@ func GetConnection(opts badger.Options) (*DB, error) {
 	return connection, nil
 }
 
-func Close() error {
+func Close(wg *sync.WaitGroup) error {
+	defer wg.Done()
 	if connection != nil {
 		return connection.Close()
 	}
