@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type RegisterRequest struct {
 	Email     string `json:"email"`
 	PublicKey string `json:"public_key"`
@@ -9,4 +11,19 @@ type RegisterRequest struct {
 type RegisterResponse struct {
 	Timestamp string `json:"timestamp"`
 	Message   string `json:"message"`
+}
+
+type SendPostRequest struct {
+	Message string `json:"message"`
+}
+
+type SendPostResponse struct {
+	Timestamp string `json:"timestamp"`
+	Message   string `json:"message"`
+}
+
+type Post struct {
+	Timestamp time.Time `json:"timestamp"`
+	Email     string    `json:"email"`
+	Message   string    `json:"message"`
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
@@ -45,6 +46,55 @@ func (h *Handler) handleTest(w http.ResponseWriter, r *http.Request) {
 
 	if err := pkey.Verify(data, auth.Signature); err != nil {
 		http.Error(w, "Invalid signature", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("OK")) // nolint
+}
+
+func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
+	auth, err := ssh.GetAuthFromRequest(r)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error reading body", http.StatusInternalServerError)
+		return
+	}
+
+	pkey, err := h.DB.GetPublicKey(auth.Email)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if pkey == nil {
+		log.Println("Auth failed")
+		http.Error(w, "Auth failed", http.StatusForbidden)
+		return
+	}
+
+	if err := pkey.Verify(data, auth.Signature); err != nil {
+		log.Println(err)
+		http.Error(w, "Invalid signature", http.StatusInternalServerError)
+		return
+	}
+
+	var postRequest models.SendPostRequest
+	if err := json.Unmarshal(data, &postRequest); err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.DB.AddPost(auth.Email, postRequest); err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -95,4 +145,27 @@ func (h *Handler) handleDebugKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(d) // nolint
+}
+
+func (h *Handler) handlePosts(w http.ResponseWriter, r *http.Request) {
+	d, err := h.DB.GetPosts()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sort.Slice(d, func(i, j int) bool {
+		return d[i].Timestamp.After(d[j].Timestamp)
+	})
+
+	data, err := json.Marshal(d)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data) // nolint
 }

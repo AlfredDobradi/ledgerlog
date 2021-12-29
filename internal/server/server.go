@@ -23,7 +23,9 @@ func New(bdb *badgerdb.DB, opts ...Opt) (*Service, error) {
 	h := &Handler{bdb}
 
 	m.HandleFunc("/test", h.handleTest)
+	m.HandleFunc("/send", h.handleSend)
 	m.HandleFunc("/register", h.handleRegister)
+	m.HandleFunc("/", h.handlePosts)
 	m.HandleFunc("/debug/keys", h.handleDebugKeys)
 
 	s := &Service{
