@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"sync"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
 	"github.com/gorilla/mux"
 )
@@ -40,6 +42,9 @@ func New(bdb *badgerdb.DB, opts ...Option) (*Service, error) {
 	}
 
 	go func() {
+		if config.GetSettings().Debug {
+			log.Printf("Starting daemon, listening on %s", s.Addr)
+		}
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.Errors <- err
 		}

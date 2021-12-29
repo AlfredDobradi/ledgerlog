@@ -17,3 +17,6 @@
 # BadgerDB
 tmp/
 data/
+
+# ignore live config
+config.toml

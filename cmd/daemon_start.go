@@ -4,52 +4,53 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"sync"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
 	"github.com/dgraph-io/badger/v3"
 )
 
-type IPAddress string
-type Port int
-
-func (a IPAddress) Validate() error {
-	if net.ParseIP(string(a)) == nil {
-		return fmt.Errorf("Invalid IP address %s", a)
-	}
-	return nil
-}
-
-func (p Port) Validate() error {
-	maxPort := 2 << 15
-	if p <= 0 || int(p) >= maxPort {
-		return fmt.Errorf("Invalid port %d", p)
-	}
-	return nil
-}
-
 type StartCmd struct {
-	IP                IPAddress `help:"IP address to listen on" default:"0.0.0.0"`
-	Port              Port      `help:"Port to listen on" default:"8080"`
-	DatabasePath      string    `help:"Path to the database files" default:"./data" type:"path"`
-	DatabaseValuePath string    `help:"Path to the database value files" type:"path"`
+	IP                config.IPAddress `help:"IP address to listen on" default:"0.0.0.0"`
+	Port              config.Port      `help:"Port to listen on" default:"8080"`
+	DatabasePath      string           `help:"Path to the database files" default:"./data" type:"path"`
+	DatabaseValuePath string           `help:"Path to the database value files" type:"path"`
 }
 
 func (cmd *StartCmd) Run(ctx *Context) error {
-	opts := badger.DefaultOptions(cmd.DatabasePath)
+	dbPath := config.GetSettings().Database.Path
+	if cmd.DatabasePath != "" {
+		dbPath = cmd.DatabasePath
+	}
+	dbValuePath := config.GetSettings().Database.Path
 	if cmd.DatabaseValuePath != "" {
-		opts.ValueDir = cmd.DatabaseValuePath
+		dbValuePath = cmd.DatabaseValuePath
+	}
+
+	opts := badger.DefaultOptions(dbPath)
+	if dbValuePath != "" {
+		opts.ValueDir = dbValuePath
 	}
 	bdb, err := badgerdb.GetConnection(opts)
 	if err != nil {
 		log.Panicln(err)
 	}
 
-	s, err := server.New(bdb)
+	ip := config.GetSettings().Daemon.IP
+	port := config.GetSettings().Daemon.Port
+	if ip == "" || cmd.IP != "0.0.0.0" {
+		ip = cmd.IP
+	}
+	if port == 0 || cmd.Port != 8080 {
+		port = cmd.Port
+	}
+
+	addr := fmt.Sprintf("%s:%d", ip, port)
+	s, err := server.New(bdb, server.WithAddress(addr))
 	if err != nil {
 		log.Panicln(err)
 	}

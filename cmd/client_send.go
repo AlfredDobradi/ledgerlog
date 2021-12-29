@@ -8,23 +8,30 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	"github.com/AlfredDobradi/ledgerlog/internal/ssh"
 )
 
 type SendCmd struct {
-	PrivKeyPath string `help:"Path to your private key" type:"existingfile" default:"~/.ssh/id_rsa"`
-	Email       string `help:"Your registered email" required:""`
-	InstanceURL string `help:"URL of the instance you want to send the post to" required:""`
+	PrivKeyPath string `help:"Path to your private key" type:"existingfile" default:"~/.ssh/id_rsa" env:"LEDGER_PRIV_KEY"`
+	Email       string `help:"Your registered email" required:"" env:"LEDGER_EMAIL"`
+	InstanceURL string `help:"URL of the instance you want to send the post to" required:"" env:"LEDGER_URL"`
 
-	Message string `arg:"" help:"The content of your post"`
+	Message string `arg:"" help:"The content of your post" required:""`
 }
 
 func (cmd *SendCmd) Run(ctx *Context) error {
-	fmt.Println(cmd.Message)
-
-	sshClient, err := ssh.NewClient(cmd.PrivKeyPath, cmd.Email)
+	keyPath := config.GetSettings().User.PrivateKeyPath
+	if cmd.PrivKeyPath != "" {
+		keyPath = cmd.PrivKeyPath
+	}
+	email := config.GetSettings().User.Email
+	if cmd.Email != "" {
+		email = cmd.Email
+	}
+	sshClient, err := ssh.NewClient(keyPath, email)
 	if err != nil {
 		return err
 	}
@@ -38,7 +45,12 @@ func (cmd *SendCmd) Run(ctx *Context) error {
 	}
 
 	body := bytes.NewBuffer(raw)
-	url := fmt.Sprintf("%s%s", cmd.InstanceURL, server.RouteAPISend)
+	instanceURL := config.GetSettings().Instance.URL
+	if cmd.InstanceURL != "" {
+		instanceURL = cmd.InstanceURL
+	}
+
+	url := fmt.Sprintf("%s%s", instanceURL, server.RouteAPISend)
 	r, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		return err

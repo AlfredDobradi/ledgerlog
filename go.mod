@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v0.3.1
 	github.com/alecthomas/kong v0.2.22
 	github.com/dgraph-io/badger/v3 v3.2103.2
 )
