@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/server"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	"github.com/AlfredDobradi/ledgerlog/internal/ssh"
 )
@@ -15,6 +16,7 @@ import (
 type SendCmd struct {
 	PrivKeyPath string `help:"Path to your private key" type:"existingfile" default:"~/.ssh/id_rsa"`
 	Email       string `help:"Your registered email" required:""`
+	InstanceURL string `help:"URL of the instance you want to send the post to" required:""`
 
 	Message string `arg:"" help:"The content of your post"`
 }
@@ -36,7 +38,8 @@ func (cmd *SendCmd) Run(ctx *Context) error {
 	}
 
 	body := bytes.NewBuffer(raw)
-	r, err := http.NewRequest(http.MethodPost, "http://localhost:8080/send", body)
+	url := fmt.Sprintf("%s%s", cmd.InstanceURL, server.RouteAPISend)
+	r, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		return err
 	}

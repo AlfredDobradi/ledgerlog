@@ -21,11 +21,10 @@ func New(bdb *badgerdb.DB, opts ...Option) (*Service, error) {
 	m := mux.NewRouter()
 	h := &Handler{bdb}
 
-	m.HandleFunc("/test", h.handleTest)
-	m.HandleFunc("/send", h.handleSend)
-	m.HandleFunc("/register", h.handleRegister)
-	m.HandleFunc("/", h.handlePosts)
-	m.HandleFunc("/debug/keys", h.handleDebugKeys)
+	m.HandleFunc(RouteAPISend, h.handleSend)
+	m.HandleFunc(RouteAPIRegister, h.handleRegister)
+	m.HandleFunc(RouteAPIPosts, h.handlePosts)
+	m.HandleFunc(RouteDebugKeys, h.handleDebugKeys)
 
 	s := &Service{
 		Server: &http.Server{

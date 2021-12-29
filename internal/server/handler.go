@@ -13,43 +13,15 @@ import (
 	"github.com/AlfredDobradi/ledgerlog/internal/ssh"
 )
 
+const (
+	RouteAPIRegister string = "/api/register"
+	RouteAPISend     string = "/api/send"
+	RouteAPIPosts    string = "/api"
+	RouteDebugKeys   string = "/debug/keys"
+)
+
 type Handler struct {
 	DB *badgerdb.DB
-}
-
-func (h *Handler) handleTest(w http.ResponseWriter, r *http.Request) {
-	auth, err := ssh.GetAuthFromRequest(r)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Error reading body", http.StatusInternalServerError)
-		return
-	}
-
-	pkey, err := h.DB.GetPublicKey(auth.Email)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if pkey == nil {
-		log.Println("Auth failed")
-		http.Error(w, "Auth failed", http.StatusForbidden)
-		return
-	}
-
-	if err := pkey.Verify(data, auth.Signature); err != nil {
-		http.Error(w, "Invalid signature", http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte("OK")) // nolint
 }
 
 func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
