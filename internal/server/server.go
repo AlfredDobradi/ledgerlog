@@ -12,13 +12,12 @@ import (
 
 type Service struct {
 	*http.Server
-	stop   chan struct{}
-	errors chan error
+	Errors chan error
 }
 
-type Opt func(*Service) error
+type Option func(*Service) error
 
-func New(bdb *badgerdb.DB, opts ...Opt) (*Service, error) {
+func New(bdb *badgerdb.DB, opts ...Option) (*Service, error) {
 	m := mux.NewRouter()
 	h := &Handler{bdb}
 
@@ -33,7 +32,6 @@ func New(bdb *badgerdb.DB, opts ...Opt) (*Service, error) {
 			Addr:    "localhost:8080",
 			Handler: m,
 		},
-		stop: make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -44,7 +42,7 @@ func New(bdb *badgerdb.DB, opts ...Opt) (*Service, error) {
 
 	go func() {
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.errors <- err
+			s.Errors <- err
 		}
 	}()
 
