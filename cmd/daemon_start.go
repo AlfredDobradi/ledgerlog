@@ -9,7 +9,6 @@ import (
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/database"
-	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/cockroach"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
 )
@@ -55,9 +54,9 @@ func applyDatabaseConfig() {
 	database.SetDriver(dbConf.Driver)
 
 	switch dbConf.Driver {
-	case config.DriverBadger:
-		badgerdb.SetDatabasePath(dbConf.Badger.Path)
-		badgerdb.SetValuePath(dbConf.Badger.ValuePath)
+	// case config.DriverBadger:
+	// 	badgerdb.SetDatabasePath(dbConf.Badger.Path)
+	// 	badgerdb.SetValuePath(dbConf.Badger.ValuePath)
 	case config.DriverCockroach:
 		cockroach.SetUser(dbConf.Postgres.User)
 		cockroach.SetPassword(dbConf.Postgres.Password)

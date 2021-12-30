@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
-	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/cockroach"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	"golang.org/x/crypto/ssh"
@@ -27,8 +26,8 @@ func GetDB() (DB, error) {
 	var db DB
 	var err error
 	switch config.GetSettings().Database.Driver {
-	case config.DriverBadger:
-		db, err = badgerdb.GetConnection()
+	// case config.DriverBadger:
+	// 	db, err = badgerdb.GetConnection()
 	case config.DriverCockroach:
 		db, err = cockroach.GetConnection()
 	default:
@@ -39,8 +38,8 @@ func GetDB() (DB, error) {
 
 func Close(wg *sync.WaitGroup) error {
 	switch config.GetSettings().Database.Driver {
-	case config.DriverBadger:
-		return badgerdb.Close(wg)
+	// case config.DriverBadger:
+	// 	return badgerdb.Close(wg)
 	case config.DriverCockroach:
 		return cockroach.Close(wg)
 	default:

@@ -7,7 +7,7 @@ import (
 type DBDriver string
 
 const (
-	DriverBadger    DBDriver = "badger"
+	// DriverBadger    DBDriver = "badger"
 	DriverCockroach DBDriver = "cockroach"
 )
 
