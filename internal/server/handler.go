@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -19,11 +20,17 @@ const (
 	RouteAPIPosts    string = "/api"
 )
 
-type Handler struct {
-	DB database.DB
-}
+type Handler struct{}
 
 func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
+	db, err := database.GetDB()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close(context.TODO())
+
 	auth, err := ssh.GetAuthFromRequest(r)
 	if err != nil {
 		log.Println(err)
@@ -37,7 +44,7 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.DB.GetUser(map[string]string{"email": auth.Email})
+	user, err := db.GetUser(map[string]string{"email": auth.Email})
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -64,7 +71,7 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postRequest.Owner = user.ID
-	if err := h.DB.AddPost(postRequest); err != nil {
+	if err := db.AddPost(postRequest); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -74,6 +81,14 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
+	db, err := database.GetDB()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close(context.TODO())
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
@@ -94,7 +109,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.DB.RegisterUser(request); err != nil {
+	if err := db.RegisterUser(request); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -115,7 +130,15 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handlePosts(w http.ResponseWriter, r *http.Request) {
-	d, err := h.DB.GetPosts()
+	db, err := database.GetDB()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close(context.TODO())
+
+	d, err := db.GetPosts()
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

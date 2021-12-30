@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -20,6 +21,7 @@ type DB interface {
 	RegisterUser(models.RegisterRequest) error
 	GetUser(map[string]string) (models.User, error)
 	GetPublicKey(string) (ssh.PublicKey, error)
+	Close(context.Context) error
 }
 
 func GetDB() (DB, error) {

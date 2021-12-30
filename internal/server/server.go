@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
-	"github.com/AlfredDobradi/ledgerlog/internal/database"
 	"github.com/gorilla/mux"
 )
 
@@ -20,13 +19,8 @@ type Service struct {
 type Option func(*Service) error
 
 func New() (*Service, error) {
-	db, err := database.GetDB()
-	if err != nil {
-		return nil, err
-	}
-
 	m := mux.NewRouter()
-	h := &Handler{db}
+	h := &Handler{}
 
 	m.HandleFunc(RouteAPISend, h.handleSend)
 	m.HandleFunc(RouteAPIRegister, h.handleRegister)
