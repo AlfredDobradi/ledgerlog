@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"sync"
 	"time"
@@ -43,8 +42,35 @@ func Close(wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (c *Conn) AddPost(string, models.SendPostRequest) error {
-	return errNotImplemented
+// TODO Use user model
+func (c *Conn) AddPost(email string, request models.SendPostRequest) error {
+	content, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	return crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		user, err := c.getUserByEmail(tx, email)
+		if err != nil {
+			return err
+		}
+
+		prevID, err := c.getLastEntryUUID(tx)
+		if err != nil {
+			return err
+		}
+
+		postID := uuid.New()
+		if _, err := tx.Exec(context.TODO(), `INSERT INTO snapshot_posts (id, idowner, post) VALUES($1::uuid, $2::uuid, $3)`,
+			postID,
+			user.ID,
+			request.Message,
+		); err != nil {
+			return fmt.Errorf("Inserting to snapshot: %w", err)
+		}
+
+		return c.appendToLedger(tx, string(content), prevID, postID)
+	})
 }
 
 func (c *Conn) GetPosts() ([]models.Post, error) {
@@ -65,22 +91,13 @@ func (c *Conn) RegisterUser(request models.RegisterRequest) error {
 	}
 
 	return crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		rows, err := tx.Query(context.TODO(), `SELECT id FROM ledger WHERE content @> $1::json OR content @> $2::json`,
-			fmt.Sprintf(`{"email": "%s"}`, request.Email),
-			fmt.Sprintf(`{"public_key": "%s"}`, request.PublicKey),
-		)
-		if err != nil {
-			return fmt.Errorf("rows: %w", err)
-		}
-		if rows.Next() {
-			return fmt.Errorf("There is already a ledger entry for creating a user with either or both of these credentials")
+		if err := c.guardEmailAndPublicKey(tx, request.Email, request.PublicKey); err != nil {
+			return err
 		}
 
-		last := tx.QueryRow(context.TODO(), "SELECT id FROM ledger ORDER BY t DESC LIMIT 1")
-		lastRow := models.LedgerEntry{}
-		if err := last.Scan(&lastRow); err != nil && err != pgx.ErrNoRows {
-			log.Printf("%T", err)
-			return fmt.Errorf("getting last record: %w", err)
+		prevID, err := c.getLastEntryUUID(tx)
+		if err != nil {
+			return err
 		}
 
 		userID := uuid.New()
@@ -93,28 +110,7 @@ func (c *Conn) RegisterUser(request models.RegisterRequest) error {
 			return fmt.Errorf("Inserting to snapshot: %w", err)
 		}
 
-		currentRow := models.LedgerEntry{
-			Timestamp: time.Now(),
-			ID:        uuid.New(),
-			Content:   content,
-			Prev:      uuid.Nil,
-			Subject:   userID,
-		}
-		if err == nil {
-			currentRow.Prev = lastRow.ID
-		}
-
-		if _, err := tx.Exec(context.TODO(), `INSERT INTO ledger (t, id, prev, idsubject, content) VALUES ($1, $2, $3::uuid, $4::uuid, $5)`,
-			currentRow.Timestamp,
-			currentRow.ID,
-			currentRow.Prev,
-			currentRow.Subject,
-			string(currentRow.Content),
-		); err != nil {
-			return fmt.Errorf("Inserting to ledger: %w", err)
-		}
-
-		return nil
+		return c.appendToLedger(tx, string(content), prevID, userID)
 	})
 }
 
@@ -153,4 +149,48 @@ func buildConnectionString() string {
 	connectionURL.RawQuery = values.Encode()
 
 	return connectionURL.String()
+}
+
+func (c *Conn) guardEmailAndPublicKey(tx pgx.Tx, email, publicKey string) error {
+	rows, err := c.Query(context.TODO(), `SELECT id FROM snapshot_users WHERE email = $1 OR public_key = $2`,
+		email,
+		publicKey,
+	)
+	if err != nil {
+		return fmt.Errorf("rows: %w", err)
+	}
+	if rows.Next() {
+		return fmt.Errorf("There is already a ledger entry for creating a user with either or both of these credentials")
+	}
+	return nil
+}
+
+func (c *Conn) getLastEntryUUID(tx pgx.Tx) (uuid.UUID, error) {
+	last := tx.QueryRow(context.TODO(), "SELECT id FROM ledger ORDER BY t DESC LIMIT 1")
+	lastID := uuid.UUID{}
+	if err := last.Scan(&lastID); err != nil && err != pgx.ErrNoRows {
+		return uuid.Nil, fmt.Errorf("getting last record: %w", err)
+	} else if err == pgx.ErrNoRows {
+		return uuid.Nil, nil
+	}
+	return lastID, nil
+}
+
+func (c *Conn) getUserByEmail(tx pgx.Tx, email string) (models.User, error) {
+	userRow := tx.QueryRow(context.TODO(), "SELECT * FROM snapshot_users WHERE email = $1", email)
+	var user models.User
+	if err := userRow.Scan(&user.ID, &user.Email, &user.PreferredName, &user.PublicKey, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		return models.User{}, fmt.Errorf("getting user: %w", err)
+	}
+	return user, nil
+}
+
+func (c *Conn) appendToLedger(tx pgx.Tx, content string, prev uuid.UUID, subject uuid.UUID) error {
+	_, err := tx.Exec(context.TODO(), `INSERT INTO ledger (t, id, prev, idsubject, content) VALUES ($1, gen_random_uuid(), $2::uuid, $3::uuid, $4)`,
+		time.Now(),
+		prev,
+		subject,
+		content,
+	)
+	return err
 }

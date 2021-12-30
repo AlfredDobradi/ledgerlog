@@ -18,6 +18,6 @@ CREATE TABLE IF NOT EXISTS snapshot_users (
 CREATE TABLE IF NOT EXISTS snapshot_posts (
     id UUID NOT NULL,
     idowner UUID NOT NULL,
-    content STRING NOT NULL,
+    post STRING NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )

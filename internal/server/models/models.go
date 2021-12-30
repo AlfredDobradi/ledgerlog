@@ -18,6 +18,7 @@ type RegisterResponse struct {
 }
 
 type SendPostRequest struct {
+	Owner   string `json:"-"`
 	Message string `json:"message"`
 }
 
@@ -38,4 +39,13 @@ type LedgerEntry struct {
 	Prev      uuid.UUID
 	Subject   uuid.UUID
 	Content   []byte
+}
+
+type User struct {
+	ID            uuid.UUID `db:"id"`
+	Email         string    `db:"email"`
+	PreferredName string    `db:"preferred_name"`
+	PublicKey     string    `db:"public_key"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
 }
