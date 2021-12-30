@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
+	_ssh "github.com/AlfredDobradi/ledgerlog/internal/ssh"
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
 	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v4"
@@ -117,8 +118,14 @@ func (c *Conn) RegisterUser(request models.RegisterRequest) error {
 	})
 }
 
-func (c *Conn) GetPublicKey(string) (ssh.PublicKey, error) {
-	return nil, errNotImplemented
+func (c *Conn) GetPublicKey(email string) (ssh.PublicKey, error) {
+	row := c.QueryRow(context.TODO(), "SELECT public_key FROM snapshot_users WHERE email = $1", email)
+	var public_key string
+	if err := row.Scan(&public_key); err != nil {
+		return nil, err
+	}
+
+	return _ssh.ParsePublicKey([]byte(public_key))
 }
 
 func buildConnectionString() string {
