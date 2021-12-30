@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/url"
 	"sync"
 
-	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	"github.com/cockroachdb/cockroach-go/crdb"
 	_ "github.com/lib/pq"
@@ -20,9 +20,15 @@ type Conn struct {
 	*sql.DB
 }
 
-func GetConnection(cfg config.PostgresSettings) (*Conn, error) {
-	c, err := sql.Open("postgres", buildConnectionString(cfg))
+func GetConnection() (*Conn, error) {
+	connectionString := buildConnectionString()
+
+	c, err := sql.Open("postgres", connectionString)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := c.Ping(); err != nil {
 		return nil, err
 	}
 
@@ -50,32 +56,45 @@ func (c *Conn) GetKeys() ([]byte, error) {
 }
 
 func (c *Conn) RegisterUser(models.RegisterRequest) error {
-	return errNotImplemented
+	return crdb.ExecuteTx(context.Background(), c.DB, nil, func(tx *sql.Tx) error {
+		last := tx.QueryRow("SELECT id FROM ledger ORDER BY t DESC LIMIT 1")
+		row := models.LedgerEntry{}
+		err := last.Scan(&row)
+		if err != nil {
+			return last.Err()
+		}
+
+		log.Printf("%+v", row)
+
+		return nil
+	})
 }
 
 func (c *Conn) GetPublicKey(string) (ssh.PublicKey, error) {
 	return nil, errNotImplemented
 }
 
-func buildConnectionString(cfg config.PostgresSettings) string {
+func buildConnectionString() string {
 	connectionURL := url.URL{}
 	connectionURL.Scheme = "postgresql"
-	if cfg.User != "" {
-		if cfg.Password != "" {
-			connectionURL.User = url.UserPassword(cfg.User, cfg.Password)
+	if User() != "" {
+		if Password() != "" {
+			connectionURL.User = url.UserPassword(User(), Password())
 		} else {
-			connectionURL.User = url.User(cfg.User)
+			connectionURL.User = url.User(User())
 		}
 	}
-	connectionURL.Host = fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
-	connectionURL.Path = cfg.Database
-	values := url.Values{}
-	values.Set("sslmode", cfg.SSLMode)
-	if cfg.SSLMode != "disabled" && cfg.SSLRootCert != "" {
-		values.Set("sslrootcert", cfg.SSLRootCert)
+	connectionURL.Host = fmt.Sprintf("%s:%s", Host(), Port())
+
+	if Cluster() != "" {
+		connectionURL.Path = fmt.Sprintf("%s.%s", Cluster(), Database())
+	} else {
+		connectionURL.Path = Database()
 	}
-	if cfg.Options != "" {
-		values.Set("options", cfg.Options)
+	values := url.Values{}
+	values.Set("sslmode", SSLMode())
+	if SSLMode() != "disabled" && SSLRootCert() != "" {
+		values.Set("sslrootcert", SSLRootCert())
 	}
 	connectionURL.RawQuery = values.Encode()
 

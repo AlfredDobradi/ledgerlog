@@ -1,16 +1,5 @@
 package cockroach
 
-// Postgres struct {
-// 	User        string
-// 	Password    string
-// 	Host        string
-// 	Port        string
-// 	Database    string
-// 	SSLMode     string
-// 	SSLRootCert string
-// 	Options     string
-// }
-
 var (
 	user        string = "root"
 	password    string = ""
@@ -19,7 +8,7 @@ var (
 	database    string = "defaultdb"
 	sslMode     string = "disabled"
 	sslRootCert string = ""
-	options     string = ""
+	cluster     string = ""
 )
 
 func User() string {
@@ -50,8 +39,8 @@ func SSLRootCert() string {
 	return sslRootCert
 }
 
-func Options() string {
-	return options
+func Cluster() string {
+	return cluster
 }
 
 func SetUser(newUser string) {
@@ -82,6 +71,6 @@ func SetSSLRootCert(newSSLRootCert string) {
 	sslRootCert = newSSLRootCert
 }
 
-func SetOptions(newOptions string) {
-	options = newOptions
+func SetCluster(newCluster string) {
+	cluster = newCluster
 }

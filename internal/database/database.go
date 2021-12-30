@@ -28,9 +28,9 @@ func GetDB() (DB, error) {
 	var err error
 	switch config.GetSettings().Database.Driver {
 	case config.DriverBadger:
-		db, err = badgerdb.GetConnection(config.GetSettings().Database.Badger)
+		db, err = badgerdb.GetConnection()
 	case config.DriverCockroach:
-		db, err = cockroach.GetConnection(config.GetSettings().Database.Postgres)
+		db, err = cockroach.GetConnection()
 	default:
 		err = errInvalidDriver
 	}

@@ -44,14 +44,13 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 	if jsonErr != nil {
 		return jsonErr
 	}
-
 	body := bytes.NewBuffer(jsonRaw)
 
 	instanceURL := config.GetSettings().Instance.URL
 	if cmd.InstanceURL != "" {
 		instanceURL = cmd.InstanceURL
 	}
-	r, requestErr := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/%s", instanceURL, server.RouteAPIRegister), body)
+	r, requestErr := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", instanceURL, server.RouteAPIRegister), body)
 	if requestErr != nil {
 		return requestErr
 	}

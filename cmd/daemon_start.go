@@ -66,7 +66,7 @@ func applyDatabaseConfig() {
 		cockroach.SetDatabase(dbConf.Postgres.Database)
 		cockroach.SetSSLMode(dbConf.Postgres.SSLMode)
 		cockroach.SetSSLRootCert(dbConf.Postgres.SSLRootCert)
-		cockroach.SetOptions(dbConf.Postgres.Options)
+		cockroach.SetCluster(dbConf.Postgres.Cluster)
 	}
 }
 

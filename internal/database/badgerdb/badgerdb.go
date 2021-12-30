@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	_ssh "github.com/AlfredDobradi/ledgerlog/internal/ssh"
 	badger "github.com/dgraph-io/badger/v3"
@@ -26,9 +25,8 @@ type DB struct {
 
 var connection *DB
 
-func GetConnection(opts config.BadgerSettings) (*DB, error) {
+func GetConnection() (*DB, error) {
 	if connection == nil {
-
 		opts := badger.DefaultOptions(DatabasePath())
 		if ValuePath() != "" {
 			opts.ValueDir = ValuePath()

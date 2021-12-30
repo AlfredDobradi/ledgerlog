@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS ledger (
     t TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP PRIMARY KEY,
     prev UUID NULL,
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    idsubject UUID NOT NULL,
     content JSONB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS snapshot_users (

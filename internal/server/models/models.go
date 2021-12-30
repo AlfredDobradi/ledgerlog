@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type RegisterRequest struct {
 	Email     string `json:"email"`
@@ -26,4 +30,12 @@ type Post struct {
 	Timestamp time.Time `json:"timestamp"`
 	Email     string    `json:"email"`
 	Message   string    `json:"message"`
+}
+
+type LedgerEntry struct {
+	Timestamp time.Time
+	ID        uuid.UUID
+	Prev      uuid.UUID
+	Subject   uuid.UUID
+	Content   []byte
 }

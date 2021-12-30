@@ -49,9 +49,9 @@ type PostgresSettings struct {
 	Host        string
 	Port        string
 	Database    string
-	SSLMode     string
-	SSLRootCert string
-	Options     string
+	SSLMode     string `toml:"ssl_mode"`
+	SSLRootCert string `toml:"ssl_root_cert"`
+	Cluster     string
 }
 
 func Parse(path string) error {
