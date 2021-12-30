@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,7 +51,7 @@ func (c *Conn) AddPost(email string, request models.SendPostRequest) error {
 	}
 
 	return crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		user, err := c.getUserByEmail(tx, email)
+		user, err := c.getUserByEmailInTx(tx, email)
 		if err != nil {
 			return err
 		}
@@ -152,7 +153,7 @@ func buildConnectionString() string {
 }
 
 func (c *Conn) guardEmailAndPublicKey(tx pgx.Tx, email, publicKey string) error {
-	rows, err := c.Query(context.TODO(), `SELECT id FROM snapshot_users WHERE email = $1 OR public_key = $2`,
+	rows, err := tx.Query(context.TODO(), `SELECT id FROM snapshot_users WHERE email = $1 OR public_key = $2`,
 		email,
 		publicKey,
 	)
@@ -176,7 +177,32 @@ func (c *Conn) getLastEntryUUID(tx pgx.Tx) (uuid.UUID, error) {
 	return lastID, nil
 }
 
-func (c *Conn) getUserByEmail(tx pgx.Tx, email string) (models.User, error) {
+func (c *Conn) GetUser(filter map[string]string) (models.User, error) {
+	validFilter := map[string]string{}
+	for key, value := range filter {
+		switch key {
+		case "id", "email", "preferred_name", "public_key":
+			validFilter[key] = value
+		}
+	}
+	filterStr := []string{}
+	values := []interface{}{}
+	index := 1
+	for key, value := range validFilter {
+		filterStr = append(filterStr, fmt.Sprintf("%s = $%d", key, index))
+		values = append(values, value)
+		index++
+	}
+	query := fmt.Sprintf("SELECT * FROM snapshot_users WHERE %s", strings.Join(filterStr, " AND "))
+	userRow := c.QueryRow(context.TODO(), query, values...)
+	var user models.User
+	if err := userRow.Scan(&user.ID, &user.Email, &user.PreferredName, &user.PublicKey, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		return models.User{}, fmt.Errorf("getting user: %w", err)
+	}
+	return user, nil
+}
+
+func (c *Conn) getUserByEmailInTx(tx pgx.Tx, email string) (models.User, error) {
 	userRow := tx.QueryRow(context.TODO(), "SELECT * FROM snapshot_users WHERE email = $1", email)
 	var user models.User
 	if err := userRow.Scan(&user.ID, &user.Email, &user.PreferredName, &user.PublicKey, &user.CreatedAt, &user.UpdatedAt); err != nil {

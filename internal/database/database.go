@@ -19,6 +19,7 @@ type DB interface {
 	GetPosts() ([]models.Post, error)
 	GetKeys() ([]byte, error)
 	RegisterUser(models.RegisterRequest) error
+	GetUser(map[string]string) (models.User, error)
 	GetPublicKey(string) (ssh.PublicKey, error)
 }
 
