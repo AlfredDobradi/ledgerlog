@@ -2,33 +2,35 @@ package cockroach
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
-	"github.com/cockroachdb/cockroach-go/crdb"
-	_ "github.com/lib/pq"
+	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
+	"github.com/google/uuid"
+	pgx "github.com/jackc/pgx/v4"
 	"golang.org/x/crypto/ssh"
 )
 
 var errNotImplemented = fmt.Errorf("Not implemented")
 
 type Conn struct {
-	*sql.DB
+	*pgx.Conn
 }
 
 func GetConnection() (*Conn, error) {
 	connectionString := buildConnectionString()
 
-	c, err := sql.Open("postgres", connectionString)
+	c, err := pgx.Connect(context.Background(), connectionString)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.Ping(); err != nil {
+	if err := c.Ping(context.TODO()); err != nil {
 		return nil, err
 	}
 
@@ -49,22 +51,67 @@ func (c *Conn) GetPosts() ([]models.Post, error) {
 }
 
 func (c *Conn) GetKeys() ([]byte, error) {
-	_ = crdb.ExecuteTx(context.Background(), c.DB, nil, func(tx *sql.Tx) error {
+	_ = crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		return nil
 	})
 	return nil, errNotImplemented
 }
 
-func (c *Conn) RegisterUser(models.RegisterRequest) error {
-	return crdb.ExecuteTx(context.Background(), c.DB, nil, func(tx *sql.Tx) error {
-		last := tx.QueryRow("SELECT id FROM ledger ORDER BY t DESC LIMIT 1")
-		row := models.LedgerEntry{}
-		err := last.Scan(&row)
+func (c *Conn) RegisterUser(request models.RegisterRequest) error {
+	content, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	return crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		rows, err := tx.Query(context.TODO(), `SELECT id FROM ledger WHERE content @> $1::json OR content @> $2::json`,
+			fmt.Sprintf(`{"email": "%s"}`, request.Email),
+			fmt.Sprintf(`{"public_key": "%s"}`, request.PublicKey),
+		)
 		if err != nil {
-			return last.Err()
+			return fmt.Errorf("rows: %w", err)
+		}
+		if rows.Next() {
+			return fmt.Errorf("There is already a ledger entry for creating a user with either or both of these credentials")
 		}
 
-		log.Printf("%+v", row)
+		last := tx.QueryRow(context.TODO(), "SELECT id FROM ledger ORDER BY t DESC LIMIT 1")
+		lastRow := models.LedgerEntry{}
+		if err := last.Scan(&lastRow); err != nil && err != pgx.ErrNoRows {
+			log.Printf("%T", err)
+			return fmt.Errorf("getting last record: %w", err)
+		}
+
+		userID := uuid.New()
+		if _, err := tx.Exec(context.TODO(), `INSERT INTO snapshot_users (id, email, preferred_name, public_key) VALUES($1::uuid, $2, $3, $4)`,
+			userID,
+			request.Email,
+			request.Name,
+			request.PublicKey,
+		); err != nil {
+			return fmt.Errorf("Inserting to snapshot: %w", err)
+		}
+
+		currentRow := models.LedgerEntry{
+			Timestamp: time.Now(),
+			ID:        uuid.New(),
+			Content:   content,
+			Prev:      uuid.Nil,
+			Subject:   userID,
+		}
+		if err == nil {
+			currentRow.Prev = lastRow.ID
+		}
+
+		if _, err := tx.Exec(context.TODO(), `INSERT INTO ledger (t, id, prev, idsubject, content) VALUES ($1, $2, $3::uuid, $4::uuid, $5)`,
+			currentRow.Timestamp,
+			currentRow.ID,
+			currentRow.Prev,
+			currentRow.Subject,
+			string(currentRow.Content),
+		); err != nil {
+			return fmt.Errorf("Inserting to ledger: %w", err)
+		}
 
 		return nil
 	})

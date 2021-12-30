@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
@@ -37,7 +38,7 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 
 	request := models.RegisterRequest{
 		Email:     email,
-		PublicKey: string(raw),
+		PublicKey: strings.Trim(string(raw), "\n"),
 	}
 
 	jsonRaw, jsonErr := json.Marshal(request)
@@ -68,7 +69,7 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 
 	if response.StatusCode != http.StatusOK {
 		output := response.Status
-		if ctx.Debug {
+		if ctx.Debug || config.GetSettings().Debug {
 			output = fmt.Sprintf("%s - %s", output, responseBody)
 		}
 		return fmt.Errorf("%s", output)
