@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	_ssh "github.com/AlfredDobradi/ledgerlog/internal/ssh"
 	badger "github.com/dgraph-io/badger/v3"
@@ -25,8 +26,13 @@ type DB struct {
 
 var connection *DB
 
-func GetConnection(opts badger.Options) (*DB, error) {
+func GetConnection(opts config.BadgerSettings) (*DB, error) {
 	if connection == nil {
+
+		opts := badger.DefaultOptions(DatabasePath())
+		if ValuePath() != "" {
+			opts.ValueDir = ValuePath()
+		}
 		db, err := badger.Open(opts)
 		if err != nil {
 			return nil, err
@@ -115,7 +121,6 @@ func (d *DB) AddPost(email string, req models.SendPostRequest) error {
 }
 
 func (d *DB) GetPosts() ([]models.Post, error) {
-
 	rawData := make([]map[string]string, 0)
 	err := d.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions

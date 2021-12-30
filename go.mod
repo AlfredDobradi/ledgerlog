@@ -3,7 +3,6 @@ module github.com/AlfredDobradi/ledgerlog
 go 1.17
 
 require (
-	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 )
@@ -11,6 +10,7 @@ require (
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/alecthomas/kong v0.2.22
+	github.com/cockroachdb/cockroach-go v2.0.1+incompatible
 	github.com/dgraph-io/badger/v3 v3.2103.2
 )
 
@@ -26,6 +26,7 @@ require (
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
+	github.com/lib/pq v1.10.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect

@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
-	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
+	"github.com/AlfredDobradi/ledgerlog/internal/database"
 	"github.com/gorilla/mux"
 )
 
@@ -19,9 +19,14 @@ type Service struct {
 
 type Option func(*Service) error
 
-func New(bdb *badgerdb.DB, opts ...Option) (*Service, error) {
+func New() (*Service, error) {
+	db, err := database.GetDB()
+	if err != nil {
+		return nil, err
+	}
+
 	m := mux.NewRouter()
-	h := &Handler{bdb}
+	h := &Handler{db}
 
 	m.HandleFunc(RouteAPISend, h.handleSend)
 	m.HandleFunc(RouteAPIRegister, h.handleRegister)
@@ -33,12 +38,6 @@ func New(bdb *badgerdb.DB, opts ...Option) (*Service, error) {
 			Addr:    "localhost:8080",
 			Handler: m,
 		},
-	}
-
-	for _, opt := range opts {
-		if err := opt(s); err != nil {
-			return nil, err
-		}
 	}
 
 	go func() {

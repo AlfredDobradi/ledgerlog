@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
+	"github.com/AlfredDobradi/ledgerlog/internal/database"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	"github.com/AlfredDobradi/ledgerlog/internal/ssh"
 )
@@ -21,7 +21,7 @@ const (
 )
 
 type Handler struct {
-	DB *badgerdb.DB
+	DB database.DB
 }
 
 func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {

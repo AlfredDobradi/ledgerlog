@@ -4,6 +4,13 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type DBDriver string
+
+const (
+	DriverBadger    DBDriver = "badger"
+	DriverCockroach DBDriver = "cockroach"
+)
+
 var settings *Settings
 
 func GetSettings() *Settings {
@@ -25,9 +32,26 @@ type Settings struct {
 		Port Port
 	}
 	Database struct {
-		Path      string
-		ValuePath string
+		Driver   DBDriver
+		Badger   BadgerSettings
+		Postgres PostgresSettings
 	}
+}
+
+type BadgerSettings struct {
+	Path      string
+	ValuePath string
+}
+
+type PostgresSettings struct {
+	User        string
+	Password    string
+	Host        string
+	Port        string
+	Database    string
+	SSLMode     string
+	SSLRootCert string
+	Options     string
 }
 
 func Parse(path string) error {

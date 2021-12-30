@@ -2,55 +2,28 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"sync"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
+	"github.com/AlfredDobradi/ledgerlog/internal/database"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/badgerdb"
+	"github.com/AlfredDobradi/ledgerlog/internal/database/cockroach"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
-	"github.com/dgraph-io/badger/v3"
 )
 
 type StartCmd struct {
-	IP                config.IPAddress `help:"IP address to listen on" default:"0.0.0.0"`
-	Port              config.Port      `help:"Port to listen on" default:"8080"`
-	DatabasePath      string           `help:"Path to the database files" default:"./data" type:"path"`
-	DatabaseValuePath string           `help:"Path to the database value files" type:"path"`
+	IP   config.IPAddress `help:"IP address to listen on" default:"0.0.0.0"`
+	Port config.Port      `help:"Port to listen on" default:"8080"`
 }
 
 func (cmd *StartCmd) Run(ctx *Context) error {
-	dbPath := config.GetSettings().Database.Path
-	if cmd.DatabasePath != "" {
-		dbPath = cmd.DatabasePath
-	}
-	dbValuePath := config.GetSettings().Database.Path
-	if cmd.DatabaseValuePath != "" {
-		dbValuePath = cmd.DatabaseValuePath
-	}
+	applyDatabaseConfig()
+	applyDaemonConfig(cmd.IP, cmd.Port)
 
-	opts := badger.DefaultOptions(dbPath)
-	if dbValuePath != "" {
-		opts.ValueDir = dbValuePath
-	}
-	bdb, err := badgerdb.GetConnection(opts)
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	ip := config.GetSettings().Daemon.IP
-	port := config.GetSettings().Daemon.Port
-	if ip == "" || cmd.IP != "0.0.0.0" {
-		ip = cmd.IP
-	}
-	if port == 0 || cmd.Port != 8080 {
-		port = cmd.Port
-	}
-
-	addr := fmt.Sprintf("%s:%d", ip, port)
-	s, err := server.New(bdb, server.WithAddress(addr))
+	s, err := server.New()
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -66,7 +39,7 @@ Loop:
 			log.Println("Received signal")
 			wg.Add(2)
 			s.Shutdown(context.Background(), wg) // nolint
-			badgerdb.Close(wg)                   // nolint
+			database.Close(wg)                   // nolint
 			wg.Wait()
 			break Loop
 		case serviceErr := <-s.Errors:
@@ -75,4 +48,38 @@ Loop:
 	}
 
 	return nil
+}
+
+func applyDatabaseConfig() {
+	dbConf := config.GetSettings().Database
+	database.SetDriver(dbConf.Driver)
+
+	switch dbConf.Driver {
+	case config.DriverBadger:
+		badgerdb.SetDatabasePath(dbConf.Badger.Path)
+		badgerdb.SetValuePath(dbConf.Badger.ValuePath)
+	case config.DriverCockroach:
+		cockroach.SetUser(dbConf.Postgres.User)
+		cockroach.SetPassword(dbConf.Postgres.Password)
+		cockroach.SetHost(dbConf.Postgres.Host)
+		cockroach.SetPort(dbConf.Postgres.Port)
+		cockroach.SetDatabase(dbConf.Postgres.Database)
+		cockroach.SetSSLMode(dbConf.Postgres.SSLMode)
+		cockroach.SetSSLRootCert(dbConf.Postgres.SSLRootCert)
+		cockroach.SetOptions(dbConf.Postgres.Options)
+	}
+}
+
+func applyDaemonConfig(ipArg config.IPAddress, portArg config.Port) {
+	ip := config.GetSettings().Daemon.IP
+	if ip == "" || ipArg != "0.0.0.0" {
+		ip = ipArg
+	}
+	server.SetIPAddress(ip)
+
+	port := config.GetSettings().Daemon.Port
+	if port == 0 || portArg != 8080 {
+		port = portArg
+	}
+	server.SetPort(port)
 }

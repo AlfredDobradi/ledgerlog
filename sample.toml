@@ -1,10 +1,10 @@
 # These are all the default values as an example - except the email, no default for that.
 # The CLI args and env vars always take precedence over config file.
 
-debug = false
+debug = true
 
 [user]
-email = "sample@email.com"
+email = "test@gmail.com"
 priv_key_path = "~/.ssh/id_rsa"
 pub_key_path = "~/.ssh/id_rsa.pub"
 
@@ -16,5 +16,20 @@ ip = "0.0.0.0"
 port = 8080
 
 [database]
-path = "./tmp"
-value_path = ""
+driver = "cockroach" # either badger or cockroach, we like animals around here
+
+    # use this if driver is badger
+    [database.badger]
+    path = "./tmp"
+    value_path = "./tmp"
+
+    # use this if driver is cockroach
+    [database.postgres]
+    user = "root"
+    password = "p455w0rd"
+    host = "127.0.0.1"
+    port = "26257"
+    database = "defaultdb"
+    ssl_mode = "disabled"
+    ssl_root_cert = "" # you don't need this if ssl_mode is disabled
+    options = "" # url-encoded options
