@@ -15,9 +15,8 @@ var (
 )
 
 type DB interface {
-	AddPost(string, models.SendPostRequest) error
+	AddPost(models.SendPostRequest) error
 	GetPosts() ([]models.Post, error)
-	GetKeys() ([]byte, error)
 	RegisterUser(models.RegisterRequest) error
 	GetUser(map[string]string) (models.User, error)
 	GetPublicKey(string) (ssh.PublicKey, error)

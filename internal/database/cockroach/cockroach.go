@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	_ssh "github.com/AlfredDobradi/ledgerlog/internal/ssh"
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
@@ -44,18 +45,13 @@ func Close(wg *sync.WaitGroup) error {
 }
 
 // TODO Use user model
-func (c *Conn) AddPost(email string, request models.SendPostRequest) error {
+func (c *Conn) AddPost(request models.SendPostRequest) error {
 	content, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
 
 	return crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		user, err := c.getUserByEmailInTx(tx, email)
-		if err != nil {
-			return err
-		}
-
 		prevID, err := c.getLastEntryUUID(tx)
 		if err != nil {
 			return err
@@ -64,13 +60,13 @@ func (c *Conn) AddPost(email string, request models.SendPostRequest) error {
 		postID := uuid.New()
 		if _, err := tx.Exec(context.TODO(), `INSERT INTO snapshot_posts (id, idowner, post) VALUES($1::uuid, $2::uuid, $3)`,
 			postID,
-			user.ID,
+			request.Owner,
 			request.Message,
 		); err != nil {
 			return fmt.Errorf("Inserting to snapshot: %w", err)
 		}
 
-		return c.appendToLedger(tx, string(content), prevID, postID)
+		return c.appendToLedger(tx, string(content), prevID, postID, config.KindPost)
 	})
 }
 
@@ -111,7 +107,7 @@ func (c *Conn) RegisterUser(request models.RegisterRequest) error {
 			return fmt.Errorf("Inserting to snapshot: %w", err)
 		}
 
-		return c.appendToLedger(tx, string(content), prevID, userID)
+		return c.appendToLedger(tx, string(content), prevID, userID, config.KindUser)
 	})
 }
 
@@ -196,26 +192,26 @@ func (c *Conn) GetUser(filter map[string]string) (models.User, error) {
 	query := fmt.Sprintf("SELECT * FROM snapshot_users WHERE %s", strings.Join(filterStr, " AND "))
 	userRow := c.QueryRow(context.TODO(), query, values...)
 	var user models.User
-	if err := userRow.Scan(&user.ID, &user.Email, &user.PreferredName, &user.PublicKey, &user.CreatedAt, &user.UpdatedAt); err != nil {
+	var publicKey string
+	if err := userRow.Scan(&user.ID, &user.Email, &user.PreferredName, &publicKey, &user.CreatedAt, &user.UpdatedAt); err != nil {
 		return models.User{}, fmt.Errorf("getting user: %w", err)
 	}
+
+	var pkeyErr error
+	user.PublicKey, pkeyErr = _ssh.ParsePublicKey([]byte(publicKey))
+	if pkeyErr != nil {
+		return models.User{}, pkeyErr
+	}
+
 	return user, nil
 }
 
-func (c *Conn) getUserByEmailInTx(tx pgx.Tx, email string) (models.User, error) {
-	userRow := tx.QueryRow(context.TODO(), "SELECT * FROM snapshot_users WHERE email = $1", email)
-	var user models.User
-	if err := userRow.Scan(&user.ID, &user.Email, &user.PreferredName, &user.PublicKey, &user.CreatedAt, &user.UpdatedAt); err != nil {
-		return models.User{}, fmt.Errorf("getting user: %w", err)
-	}
-	return user, nil
-}
-
-func (c *Conn) appendToLedger(tx pgx.Tx, content string, prev uuid.UUID, subject uuid.UUID) error {
-	_, err := tx.Exec(context.TODO(), `INSERT INTO ledger (t, id, prev, idsubject, content) VALUES ($1, gen_random_uuid(), $2::uuid, $3::uuid, $4)`,
+func (c *Conn) appendToLedger(tx pgx.Tx, content string, prev uuid.UUID, subject uuid.UUID, kind config.SubjectKind) error {
+	_, err := tx.Exec(context.TODO(), `INSERT INTO ledger (t, id, prev, idsubject, subject_type, content) VALUES ($1, gen_random_uuid(), $2::uuid, $3::uuid, $4, $5)`,
 		time.Now(),
 		prev,
 		subject,
+		string(kind),
 		content,
 	)
 	return err

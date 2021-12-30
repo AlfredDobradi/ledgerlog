@@ -17,7 +17,6 @@ const (
 	RouteAPIRegister string = "/api/register"
 	RouteAPISend     string = "/api/send"
 	RouteAPIPosts    string = "/api"
-	RouteDebugKeys   string = "/debug/keys"
 )
 
 type Handler struct {
@@ -38,20 +37,20 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pkey, err := h.DB.GetPublicKey(auth.Email)
+	user, err := h.DB.GetUser(map[string]string{"email": auth.Email})
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if pkey == nil {
+	if user.PublicKey == nil {
 		log.Println("Auth failed")
 		http.Error(w, "Auth failed", http.StatusForbidden)
 		return
 	}
 
-	if err := pkey.Verify(data, auth.Signature); err != nil {
+	if err := user.PublicKey.Verify(data, auth.Signature); err != nil {
 		log.Println(err)
 		http.Error(w, "Invalid signature", http.StatusInternalServerError)
 		return
@@ -64,7 +63,8 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.DB.AddPost(auth.Email, postRequest); err != nil {
+	postRequest.Owner = user.ID
+	if err := h.DB.AddPost(postRequest); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -112,17 +112,6 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(raw) // nolint
-}
-
-func (h *Handler) handleDebugKeys(w http.ResponseWriter, r *http.Request) {
-	d, err := h.DB.GetKeys()
-	if err != nil {
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(d) // nolint
 }
 
 func (h *Handler) handlePosts(w http.ResponseWriter, r *http.Request) {

@@ -4,13 +4,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type DBDriver string
-
-const (
-	// DriverBadger    DBDriver = "badger"
-	DriverCockroach DBDriver = "cockroach"
-)
-
 var settings *Settings
 
 func GetSettings() *Settings {
@@ -23,6 +16,7 @@ type Settings struct {
 		Email          string
 		PublicKeyPath  string
 		PrivateKeyPath string
+		PreferredName  string
 	}
 	Instance struct {
 		URL string

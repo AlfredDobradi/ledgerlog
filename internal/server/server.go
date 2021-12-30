@@ -31,7 +31,6 @@ func New() (*Service, error) {
 	m.HandleFunc(RouteAPISend, h.handleSend)
 	m.HandleFunc(RouteAPIRegister, h.handleRegister)
 	m.HandleFunc(RouteAPIPosts, h.handlePosts)
-	m.HandleFunc(RouteDebugKeys, h.handleDebugKeys)
 
 	s := &Service{
 		Server: &http.Server{

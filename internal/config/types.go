@@ -5,6 +5,9 @@ import (
 	"net"
 )
 
+type DBDriver string
+type SubjectKind string
+
 type IPAddress string
 type Port int
 

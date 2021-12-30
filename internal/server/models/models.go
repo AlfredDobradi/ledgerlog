@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/ssh"
 )
 
 type RegisterRequest struct {
@@ -18,8 +19,8 @@ type RegisterResponse struct {
 }
 
 type SendPostRequest struct {
-	Owner   string `json:"-"`
-	Message string `json:"message"`
+	Owner   uuid.UUID `json:"owner"`
+	Message string    `json:"message"`
 }
 
 type SendPostResponse struct {
@@ -29,7 +30,7 @@ type SendPostResponse struct {
 
 type Post struct {
 	Timestamp time.Time `json:"timestamp"`
-	Email     string    `json:"email"`
+	User      User      `json:"user"`
 	Message   string    `json:"message"`
 }
 
@@ -42,10 +43,10 @@ type LedgerEntry struct {
 }
 
 type User struct {
-	ID            uuid.UUID `db:"id"`
-	Email         string    `db:"email"`
-	PreferredName string    `db:"preferred_name"`
-	PublicKey     string    `db:"public_key"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ID            uuid.UUID     `db:"id"`
+	Email         string        `db:"email" json:"-"`
+	PreferredName string        `db:"preferred_name"`
+	PublicKey     ssh.PublicKey `db:"public_key"`
+	CreatedAt     time.Time     `db:"created_at" json:"-"`
+	UpdatedAt     time.Time     `db:"updated_at" json:"-"`
 }

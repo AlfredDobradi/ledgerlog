@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS ledger (
     prev UUID NOT NULL,
     id UUID NOT NULL,
     idsubject UUID NOT NULL,
+    subject_type string NOT NULL,
     content JSONB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS snapshot_users (

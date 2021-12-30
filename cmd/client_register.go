@@ -15,29 +15,26 @@ import (
 )
 
 type RegisterCmd struct {
-	Email       string `help:"Email address to register" required:"" env:"LEDGER_EMAIL"`
-	KeyPath     string `help:"Path to public key" type:"existingfile" default:"~/.ssh/id_rsa.pub" env:"LEDGER_PUB_KEY"`
-	InstanceURL string `help:"URL of the instance you want to send the post to" required:"" env:"LEDGER_URL"`
+	Email         string `help:"Email address to register" required:"" env:"LEDGER_EMAIL"`
+	PreferredName string `help:"Your preferred name on the site" required:"" env:"LEDGER_PREFERRED_NAME"`
+	KeyPath       string `help:"Path to public key" type:"existingfile" required:"" default:"~/.ssh/id_rsa.pub" env:"LEDGER_PUB_KEY"`
+	InstanceURL   string `help:"URL of the instance you want to send the post to" required:"" default:"http://localhost:8080" env:"LEDGER_INSTANCE_URL"`
 }
 
 func (cmd *RegisterCmd) Run(ctx *Context) error {
-	keyPath := config.GetSettings().User.PublicKeyPath
-	if cmd.KeyPath != "" {
-		keyPath = cmd.KeyPath
+	instanceURL := config.GetSettings().Instance.URL
+	if cmd.InstanceURL != "" {
+		instanceURL = cmd.InstanceURL
 	}
 
-	raw, fileErr := os.ReadFile(keyPath)
+	raw, fileErr := os.ReadFile(cmd.KeyPath)
 	if fileErr != nil {
 		return fileErr
 	}
 
-	email := config.GetSettings().User.Email
-	if cmd.Email != "" {
-		email = cmd.Email
-	}
-
 	request := models.RegisterRequest{
-		Email:     email,
+		Email:     cmd.Email,
+		Name:      cmd.PreferredName,
 		PublicKey: strings.Trim(string(raw), "\n"),
 	}
 
@@ -47,10 +44,6 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 	}
 	body := bytes.NewBuffer(jsonRaw)
 
-	instanceURL := config.GetSettings().Instance.URL
-	if cmd.InstanceURL != "" {
-		instanceURL = cmd.InstanceURL
-	}
 	r, requestErr := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", instanceURL, server.RouteAPIRegister), body)
 	if requestErr != nil {
 		return requestErr
@@ -80,6 +73,6 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 		return err
 	}
 
-	fmt.Printf("Successfully registered %s with the given public key\n", email)
+	fmt.Printf("Successfully registered %s with the given public key\n", cmd.Email)
 	return nil
 }
