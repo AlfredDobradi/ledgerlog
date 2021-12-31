@@ -33,7 +33,7 @@ Loop:
 		select {
 		case <-sigs:
 			wg := &sync.WaitGroup{}
-			fmt.Println("Received signal to stop...")
+			fmt.Println("\rReceived signal to stop...")
 			wg.Add(2)
 			{
 				fmt.Printf("Shutting down HTTP service...")
