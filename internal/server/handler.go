@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/database"
@@ -18,6 +19,8 @@ const (
 	RouteAPIRegister string = "/api/register"
 	RouteAPISend     string = "/api/send"
 	RouteAPIPosts    string = "/api"
+
+	PostsPerPage int = 30
 )
 
 type Handler struct{}
@@ -44,7 +47,7 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := db.GetUser(map[string]string{"email": auth.Email})
+	user, err := db.FindUser(map[string]string{"email": auth.Email})
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -138,7 +141,22 @@ func (h *Handler) handlePosts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close(context.TODO())
 
-	d, err := db.GetPosts()
+	if err := r.ParseForm(); err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	page := r.Form.Get("page")
+	if page == "" {
+		page = "1"
+	}
+
+	pageNum, err := strconv.ParseInt(page, 10, 32)
+	if err != nil {
+		pageNum = 0
+	}
+
+	d, err := db.GetPosts(int(pageNum), PostsPerPage)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

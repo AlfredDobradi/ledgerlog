@@ -29,9 +29,19 @@ type SendPostResponse struct {
 }
 
 type Post struct {
+	ID        uuid.UUID `json:"id"`
 	Timestamp time.Time `json:"timestamp"`
 	User      User      `json:"user"`
 	Message   string    `json:"message"`
+}
+
+type PostDisplay struct {
+	ID                uuid.UUID
+	Timestamp         time.Time
+	UserID            uuid.UUID
+	UserPreferredName string
+	UserFingerprint   string
+	Message           string
 }
 
 type LedgerEntry struct {

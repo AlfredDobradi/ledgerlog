@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -70,15 +71,47 @@ func (c *Conn) AddPost(request models.SendPostRequest) error {
 	})
 }
 
-func (c *Conn) GetPosts() ([]models.Post, error) {
-	return nil, errNotImplemented
-}
+func (c *Conn) GetPosts(page, num int) ([]models.PostDisplay, error) {
+	if num < 1 {
+		num = 0
+	} else if num > 100 {
+		num = 100
+	}
+	offset := (page - 1) * num
 
-func (c *Conn) GetKeys() ([]byte, error) {
-	_ = crdbpgx.ExecuteTx(context.Background(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
+	posts := make([]models.PostDisplay, 0)
+
+	err := crdbpgx.ExecuteTx(context.TODO(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		rows, err := tx.Query(context.TODO(), "SELECT sp.id, sp.post, sp.created_at, su.id, su.preferred_name, su.public_key FROM snapshot_posts sp JOIN snapshot_users su ON sp.idowner = su.id ORDER BY created_at DESC LIMIT $1 OFFSET $2", num, offset)
+		if err != nil {
+			return err
+		}
+
+		var row models.PostDisplay
+		var pubkey string
+		for rows.Next() {
+			err := rows.Scan(&row.ID, &row.Message, &row.Timestamp, &row.UserID, &row.UserPreferredName, &pubkey)
+			if err != nil {
+				return err
+			}
+
+			pubKey, err := _ssh.ParsePublicKey([]byte(pubkey))
+			if err != nil {
+				return err
+			}
+
+			row.UserFingerprint = ssh.FingerprintSHA256(pubKey)
+		}
+		posts = append(posts, row)
 		return nil
 	})
-	return nil, errNotImplemented
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("%+v", posts)
+
+	return posts, nil
 }
 
 func (c *Conn) RegisterUser(request models.RegisterRequest) error {
@@ -173,7 +206,7 @@ func (c *Conn) getLastEntryUUID(tx pgx.Tx) (uuid.UUID, error) {
 	return lastID, nil
 }
 
-func (c *Conn) GetUser(filter map[string]string) (models.User, error) {
+func (c *Conn) FindUser(filter map[string]string) (models.User, error) {
 	validFilter := map[string]string{}
 	for key, value := range filter {
 		switch key {
@@ -204,6 +237,17 @@ func (c *Conn) GetUser(filter map[string]string) (models.User, error) {
 	}
 
 	return user, nil
+}
+
+func (c *Conn) getUserInTx(tx pgx.Tx, id uuid.UUID) (models.User, error) {
+	row := tx.QueryRow(context.TODO(), "SELECT * FROM snapshot_users WHERE id = $1::uuid", id)
+	u := models.User{}
+	err := row.Scan(&u.ID, &u.Email, &u.PreferredName, &u.PublicKey, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return u, nil
 }
 
 func (c *Conn) appendToLedger(tx pgx.Tx, content string, prev uuid.UUID, subject uuid.UUID, kind config.SubjectKind) error {

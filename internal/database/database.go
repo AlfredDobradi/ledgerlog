@@ -16,12 +16,12 @@ var (
 )
 
 type DB interface {
-	AddPost(models.SendPostRequest) error
-	GetPosts() ([]models.Post, error)
-	RegisterUser(models.RegisterRequest) error
-	GetUser(map[string]string) (models.User, error)
-	GetPublicKey(string) (ssh.PublicKey, error)
-	Close(context.Context) error
+	AddPost(request models.SendPostRequest) error
+	GetPosts(pageNum int, postsPerPage int) ([]models.PostDisplay, error)
+	RegisterUser(request models.RegisterRequest) error
+	FindUser(filters map[string]string) (models.User, error)
+	GetPublicKey(email string) (ssh.PublicKey, error)
+	Close(context context.Context) error
 }
 
 func GetDB() (DB, error) {
