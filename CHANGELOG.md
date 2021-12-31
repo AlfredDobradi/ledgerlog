@@ -2,6 +2,18 @@
 
 <!--- next entry here -->
 
+## 0.3.0
+2021-12-31
+
+### Features
+
+- Index page (80b7d09c35f4757b5a2529399bd4a70c524dbde0)
+
+### Fixes
+
+- Carriage return after signal (d1493f4b7f97bd78f2067129615179d2dbf379c2)
+- Remove logging from GetPosts (4141eba57563faf1b53ef8dc32ef844c40fc7103)
+
 ## 0.2.0
 2021-12-31
 
