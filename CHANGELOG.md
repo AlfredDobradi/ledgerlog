@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 0.2.0
+2021-12-31
+
+### Features
+
+- Binary names (71523253eacd8dc22402125bc2992c2f8058b793)
+
 ## 0.1.0
 2021-12-31
 
