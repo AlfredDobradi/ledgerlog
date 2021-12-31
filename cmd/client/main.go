@@ -24,10 +24,11 @@ type Context struct {
 
 var CLI struct {
 	Debug      bool   `help:"Enable debug mode"`
-	ConfigPath string `help:"Path to TOML config file" type:"existingfile" required:"" name:"cfg" env:"LEDGER_CFG" short:"c"`
+	ConfigPath string `help:"Path to TOML config file" type:"existingfile" name:"cfg" env:"LEDGER_CFG" short:"c"`
 
 	Register RegisterCmd `cmd:"" help:"Register email with public key"`
 	Send     SendCmd     `cmd:"" help:"Send new post"`
+	Version  VersionCmd  `cmd:"" help:"Version information"`
 }
 
 func main() {
@@ -36,8 +37,10 @@ func main() {
 		kong.Name("ledgerlog"), kong.UsageOnError(),
 	)
 
-	if err := config.Parse(CLI.ConfigPath); err != nil {
-		log.Panicln(err)
+	if CLI.ConfigPath != "" {
+		if err := config.Parse(CLI.ConfigPath); err != nil {
+			log.Panicln(err)
+		}
 	}
 
 	err := ctx.Run(&Context{Debug: CLI.Debug})
