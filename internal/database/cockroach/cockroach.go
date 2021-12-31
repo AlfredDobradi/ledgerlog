@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -106,8 +105,6 @@ func (c *Conn) GetPosts(page, num int) ([]models.PostDisplay, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("%+v", posts)
 
 	return posts, nil
 }
