@@ -15,14 +15,14 @@ var CLI struct {
 	Debug      bool   `help:"Enable debug mode"`
 	ConfigPath string `help:"Path to TOML config file" type:"existingfile" required:"" name:"cfg" env:"LEDGER_CFG" short:"c"`
 
-	Client ClientCmd `cmd:"" help:"Client related commands"`
-	Daemon DaemonCmd `cmd:"" help:"Daemon related commands"`
+	Start   StartCmd   `cmd:"" help:"Start the daemon"`
+	FindKey FindKeyCmd `cmd:"" help:"Scan for a key pattern"`
 }
 
 func main() {
 	ctx := kong.Parse(&CLI,
-		kong.Description("Ledgerlog - A journaling microblog"),
-		kong.Name("ledgerlog"), kong.UsageOnError(),
+		kong.Description("LedgerD - A journaling microblog server"),
+		kong.Name("ledgerd"), kong.UsageOnError(),
 	)
 
 	if err := config.Parse(CLI.ConfigPath); err != nil {
