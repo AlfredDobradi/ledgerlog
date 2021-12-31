@@ -16,7 +16,14 @@ import (
 
 type Build mg.Namespace
 
-const pkgBase string = "github.com/AlfredDobradi/ledgerlog/cmd"
+const (
+	pkgBase string = "github.com/AlfredDobradi/ledgerlog/cmd"
+
+	daemonPkg string = "daemon"
+	daemonBin string = "ledgerd"
+	clientPkg string = "client"
+	clientBin string = "ledgerlog"
+)
 
 var (
 	ldflags         = "-s -w -X main.commitHash=$COMMIT_HASH -X main.buildTime=$BUILD_TIME -X main.tag=$VERSION_TAG"
@@ -27,21 +34,30 @@ var (
 
 // Daemon builds the daemon binary
 func (Build) Daemon() error {
-	return build("daemon")
+	return build(daemonPkg)
 }
 
 // Client builds the client binary
 func (Build) Client() error {
-	return build("client")
+	return build(clientPkg)
 }
 
 func build(pkg string) error {
 	pkgPath := fmt.Sprintf("%s/%s", pkgBase, pkg)
+	binaryName := ""
+	switch pkg {
+	case daemonPkg:
+		binaryName = daemonBin
+	case clientPkg:
+		binaryName = clientBin
+	default:
+		return fmt.Errorf("Invalid package name: %s", pkg)
+	}
 
 	for _, os := range targetOS {
 		env := flagEnv()
 		env["GOOS"] = os
-		output := fmt.Sprintf("./target/%s/%s/%s", os, pkg, pkg)
+		output := fmt.Sprintf("./target/%s/%s/%s", os, pkg, binaryName)
 		fmt.Printf("Building package '%s' in '%s'...", pkgPath, output)
 		if err := sh.RunWith(env, "go", "build", "-o", output, "-ldflags", ldflags, pkgPath); err != nil {
 			cli.Failure()
@@ -50,7 +66,7 @@ func build(pkg string) error {
 		cli.Success()
 
 		fmt.Printf("Generating sha256 and md5 checksum files for %s target...", os)
-		if err := generateCheckSumFiles(pkg, os); err != nil {
+		if err := generateCheckSumFiles(pkg, binaryName, os); err != nil {
 			cli.Failure()
 			return fmt.Errorf("Failed writing checksum files for %s: %w", os, err)
 		}
@@ -94,9 +110,8 @@ func getVersionTag() string {
 	return versiontag
 }
 
-func generateCheckSumFiles(pkg, target string) error {
-
-	targetpath := fmt.Sprintf("target/%s/%s/%s", target, pkg, pkg)
+func generateCheckSumFiles(pkg, binary, target string) error {
+	targetpath := fmt.Sprintf("target/%s/%s/%s", target, pkg, binary)
 	for _, checksumFormat := range checksumFormats {
 		out, err := sh.Output(fmt.Sprintf("%ssum", checksumFormat), targetpath)
 		if err != nil {
