@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/gorilla/mux"
+	_ "github.com/gorilla/websocket"
 )
 
 type Service struct {
@@ -20,14 +22,16 @@ type Option func(*Service) error
 
 func New() *Service {
 	m := mux.NewRouter()
-	h := &Handler{}
+	h := NewHandler()
 
 	m.HandleFunc(RouteAPISend, h.handleAPISend)
 	m.HandleFunc(RouteAPIRegister, h.handleAPIRegister)
 	m.HandleFunc(RouteAPIPosts, h.handleAPIPosts)
+	m.HandleFunc(RouteAPIWS, h.handlePostsSocket)
 	m.HandleFunc(RouteIndex, h.handleIndex)
 
-	m.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./public/static"))))
+	staticPath := fmt.Sprintf("%s/static", PublicPath())
+	m.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
 
 	s := &Service{
 		Server: &http.Server{

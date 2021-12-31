@@ -109,6 +109,58 @@ func (c *Conn) GetPosts(page, num int) ([]models.PostDisplay, error) {
 	return posts, nil
 }
 
+func (c *Conn) GetPostsSince(max int, since time.Time) ([]models.PostDisplay, int, error) {
+	posts := make([]models.PostDisplay, 0)
+	rowNum := 0
+
+	err := crdbpgx.ExecuteTx(context.TODO(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		allCountRow := tx.QueryRow(context.TODO(), `SELECT COUNT(id) FROM snapshot_posts WHERE created_at > $1::TIMESTAMP`, since.Format(time.RFC3339Nano))
+		if err := allCountRow.Scan(&rowNum); err != nil {
+			return err
+		}
+
+		query := `SELECT
+		sp.id, sp.post, sp.created_at, su.id, su.preferred_name, su.public_key
+		FROM snapshot_posts sp
+		JOIN snapshot_users su ON sp.idowner = su.id
+		WHERE sp.created_at > $1::TIMESTAMP
+		ORDER BY sp.created_at DESC`
+		params := []interface{}{since.Format(time.RFC3339Nano)}
+		if max > 0 {
+			query += " LIMIT $2"
+			params = append(params, max)
+		}
+
+		rows, err := tx.Query(context.TODO(), query, params...)
+		if err != nil {
+			return err
+		}
+
+		var row models.PostDisplay
+		var pubkey string
+		for rows.Next() {
+			err := rows.Scan(&row.ID, &row.Message, &row.Timestamp, &row.UserID, &row.UserPreferredName, &pubkey)
+			if err != nil {
+				return err
+			}
+
+			pubKey, err := _ssh.ParsePublicKey([]byte(pubkey))
+			if err != nil {
+				return err
+			}
+
+			row.UserFingerprint = ssh.FingerprintSHA256(pubKey)
+			posts = append(posts, row)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return posts, rowNum, nil
+}
+
 func (c *Conn) RegisterUser(request models.RegisterRequest) error {
 	content, err := json.Marshal(request)
 	if err != nil {

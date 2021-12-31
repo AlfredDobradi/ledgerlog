@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/cockroach"
@@ -18,6 +19,7 @@ var (
 type DB interface {
 	AddPost(request models.SendPostRequest) error
 	GetPosts(pageNum int, postsPerPage int) ([]models.PostDisplay, error)
+	GetPostsSince(max int, since time.Time) ([]models.PostDisplay, int, error)
 	RegisterUser(request models.RegisterRequest) error
 	FindUser(filters map[string]string) (models.User, error)
 	GetPublicKey(email string) (ssh.PublicKey, error)
