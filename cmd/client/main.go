@@ -7,6 +7,17 @@ import (
 	"github.com/alecthomas/kong"
 )
 
+var (
+	// tag is the version tag created by go-semrel
+	tag = "v0.0.0"
+
+	// commitHash is the HEAD commit when the application was compiled
+	commitHash = "00000000"
+
+	// buildTime is the full date time when the application was compiled
+	buildTime = ""
+)
+
 type Context struct {
 	Debug bool
 }

@@ -23,3 +23,7 @@ config.toml
 
 # VS Code
 .vscode
+
+# build-related
+.release_version
+target/
