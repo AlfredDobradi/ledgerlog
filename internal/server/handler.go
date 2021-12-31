@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/database"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
 	"github.com/AlfredDobradi/ledgerlog/internal/ssh"
@@ -19,13 +23,18 @@ const (
 	RouteAPIRegister string = "/api/register"
 	RouteAPISend     string = "/api/send"
 	RouteAPIPosts    string = "/api"
+	RouteIndex       string = "/"
 
 	PostsPerPage int = 30
 )
 
+// TODO use FS
+//go:embed templates/index.gohtml
+var indexTemplate string
+
 type Handler struct{}
 
-func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	db, err := database.GetDB()
 	if err != nil {
 		log.Println(err)
@@ -83,7 +92,7 @@ func (h *Handler) handleSend(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK")) // nolint
 }
 
-func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 	db, err := database.GetDB()
 	if err != nil {
 		log.Println(err)
@@ -132,7 +141,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	w.Write(raw) // nolint
 }
 
-func (h *Handler) handlePosts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 	db, err := database.GetDB()
 	if err != nil {
 		log.Println(err)
@@ -176,4 +185,29 @@ func (h *Handler) handlePosts(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data) // nolint
+}
+
+func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
+	tpl, err := template.New("index").Parse(indexTemplate)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	siteConfig := config.GetSettings().Site
+
+	pageData := struct {
+		SiteConfig config.SiteSettings
+	}{
+		SiteConfig: siteConfig,
+	}
+
+	output := bytes.NewBuffer([]byte{})
+	if err := tpl.Execute(output, pageData); err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(output.Bytes()) // nolint
 }

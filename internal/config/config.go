@@ -30,6 +30,7 @@ type Settings struct {
 		Badger   BadgerSettings
 		Postgres PostgresSettings
 	}
+	Site SiteSettings
 }
 
 type BadgerSettings struct {
@@ -46,6 +47,10 @@ type PostgresSettings struct {
 	SSLMode     string `toml:"ssl_mode"`
 	SSLRootCert string `toml:"ssl_root_cert"`
 	Cluster     string
+}
+
+type SiteSettings struct {
+	Title string
 }
 
 func Parse(path string) error {

@@ -36,12 +36,12 @@ type Post struct {
 }
 
 type PostDisplay struct {
-	ID                uuid.UUID
-	Timestamp         time.Time
-	UserID            uuid.UUID
-	UserPreferredName string
-	UserFingerprint   string
-	Message           string
+	ID                uuid.UUID `json:"id"`
+	Timestamp         time.Time `json:"timestamp"`
+	UserID            uuid.UUID `json:"user_id"`
+	UserPreferredName string    `json:"user_preferred_name"`
+	UserFingerprint   string    `json:"user_fingerprint"`
+	Message           string    `json:"message"`
 }
 
 type LedgerEntry struct {

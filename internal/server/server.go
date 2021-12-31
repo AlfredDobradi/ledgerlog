@@ -22,9 +22,12 @@ func New() *Service {
 	m := mux.NewRouter()
 	h := &Handler{}
 
-	m.HandleFunc(RouteAPISend, h.handleSend)
-	m.HandleFunc(RouteAPIRegister, h.handleRegister)
-	m.HandleFunc(RouteAPIPosts, h.handlePosts)
+	m.HandleFunc(RouteAPISend, h.handleAPISend)
+	m.HandleFunc(RouteAPIRegister, h.handleAPIRegister)
+	m.HandleFunc(RouteAPIPosts, h.handleAPIPosts)
+	m.HandleFunc(RouteIndex, h.handleIndex)
+
+	m.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./public/static"))))
 
 	s := &Service{
 		Server: &http.Server{
