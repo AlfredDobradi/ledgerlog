@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/cli"
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/database"
 	"github.com/AlfredDobradi/ledgerlog/internal/database/cockroach"
@@ -22,10 +23,7 @@ func (cmd *StartCmd) Run(ctx *Context) error {
 	applyDatabaseConfig()
 	applyDaemonConfig(cmd.IP, cmd.Port)
 
-	s, err := server.New()
-	if err != nil {
-		log.Panicln(err)
-	}
+	s := server.New()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
@@ -35,14 +33,22 @@ Loop:
 		select {
 		case <-sigs:
 			wg := &sync.WaitGroup{}
-			log.Println("Received signal")
+			fmt.Println("Received signal to stop...")
 			wg.Add(2)
-			s.Shutdown(context.Background(), wg) // nolint
-			database.Close(wg)                   // nolint
+			{
+				fmt.Printf("Shutting down HTTP service...")
+				s.Shutdown(context.Background(), wg) // nolint
+				cli.Success()
+			}
+			{
+				fmt.Printf("Closing database connection...")
+				database.Close(wg) // nolint
+				cli.Success()
+			}
 			wg.Wait()
 			break Loop
 		case serviceErr := <-s.Errors:
-			log.Printf("Received error from HTTP service: %v", serviceErr)
+			fmt.Printf("Received error from HTTP service: %v\n", serviceErr)
 		}
 	}
 

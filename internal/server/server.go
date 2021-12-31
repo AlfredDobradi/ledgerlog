@@ -18,7 +18,7 @@ type Service struct {
 
 type Option func(*Service) error
 
-func New() (*Service, error) {
+func New() *Service {
 	m := mux.NewRouter()
 	h := &Handler{}
 
@@ -42,7 +42,7 @@ func New() (*Service, error) {
 		}
 	}()
 
-	return s, nil
+	return s
 }
 
 func (s *Service) Shutdown(ctx context.Context, wg *sync.WaitGroup) error {
