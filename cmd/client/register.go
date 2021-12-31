@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/cli"
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
@@ -27,9 +28,12 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 		instanceURL = cmd.InstanceURL
 	}
 
+	fmt.Printf("Registering %s with the given public key at %s...", cmd.Email, instanceURL)
+
 	raw, fileErr := os.ReadFile(cmd.KeyPath)
 	if fileErr != nil {
-		return fileErr
+		cli.Failure()
+		return fmt.Errorf("Failed to open %s: %w", cmd.KeyPath, fileErr)
 	}
 
 	request := models.RegisterRequest{
@@ -40,39 +44,42 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 
 	jsonRaw, jsonErr := json.Marshal(request)
 	if jsonErr != nil {
-		return jsonErr
+		cli.Failure()
+		return fmt.Errorf("Failed to marshal request %w", jsonErr)
 	}
 	body := bytes.NewBuffer(jsonRaw)
 
 	r, requestErr := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", instanceURL, server.RouteAPIRegister), body)
 	if requestErr != nil {
-		return requestErr
+		cli.Failure()
+		return fmt.Errorf("Failed to create HTTP request: %w", requestErr)
 	}
 
 	client := http.DefaultClient
 	response, clientErr := client.Do(r)
 	if clientErr != nil {
-		return clientErr
+		cli.Failure()
+		return fmt.Errorf("Failed to send HTTP request: %w", clientErr)
 	}
 
 	responseBody, readBodyErr := io.ReadAll(response.Body)
 	if readBodyErr != nil {
-		return readBodyErr
+		cli.Failure()
+		return fmt.Errorf("Failed to read response body: %w", readBodyErr)
 	}
 
 	if response.StatusCode != http.StatusOK {
-		output := response.Status
-		if ctx.Debug || config.GetSettings().Debug {
-			output = fmt.Sprintf("%s - %s", output, responseBody)
-		}
-		return fmt.Errorf("%s", output)
+		cli.Failure()
+		return fmt.Errorf("The server returned an error: %s", response.Status)
 	}
 
 	var registerResponse models.RegisterResponse
 	if err := json.Unmarshal(responseBody, &registerResponse); err != nil {
-		return err
+		cli.Failure()
+		return fmt.Errorf("Failed to unmarshal response body: %w", err)
 	}
 
-	fmt.Printf("Successfully registered %s with the given public key\n", cmd.Email)
+	cli.Success()
+
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/cli"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
@@ -22,9 +23,6 @@ var (
 	targetOS        = []string{"linux", "darwin"}
 	checksumFormats = []string{"sha256", "md5"}
 	cleanupTargets  = []string{"./target"}
-
-	success string = "\x1b[32m\u2713\x1b[0m"
-	failure string = "\x1b[31m\u2717\x1b[0m"
 )
 
 // Daemon builds the daemon binary
@@ -46,17 +44,17 @@ func build(pkg string) error {
 		output := fmt.Sprintf("./target/%s/%s/%s", os, pkg, pkg)
 		fmt.Printf("Building package '%s' in '%s'...", pkgPath, output)
 		if err := sh.RunWith(env, "go", "build", "-o", output, "-ldflags", ldflags, pkgPath); err != nil {
-			fmt.Printf(" %s\n", failure)
+			cli.Failure()
 			return fmt.Errorf("Failed building package for %s: %w", os, err)
 		}
-		fmt.Printf(" %s\n", success)
+		cli.Success()
 
 		fmt.Printf("Generating sha256 and md5 checksum files for %s target...", os)
 		if err := generateCheckSumFiles(pkg, os); err != nil {
-			fmt.Printf(" %s\n", failure)
+			cli.Failure()
 			return fmt.Errorf("Failed writing checksum files for %s: %w", os, err)
 		}
-		fmt.Printf(" %s\n", success)
+		cli.Success()
 	}
 	return nil
 }
@@ -65,10 +63,10 @@ func Clean() error {
 	for _, target := range cleanupTargets {
 		fmt.Printf("Removing %s...", target)
 		if err := os.RemoveAll(target); err != nil {
-			fmt.Printf(" %s\n", failure)
+			cli.Failure()
 			return fmt.Errorf("Failed removing %s: %w", target, err)
 		}
-		fmt.Printf(" %s\n", success)
+		cli.Success()
 	}
 	return nil
 }

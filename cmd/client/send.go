@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 
+	"github.com/AlfredDobradi/ledgerlog/internal/cli"
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/AlfredDobradi/ledgerlog/internal/server"
 	"github.com/AlfredDobradi/ledgerlog/internal/server/models"
@@ -35,41 +34,46 @@ func (cmd *SendCmd) Run(ctx *Context) error {
 	if err != nil {
 		return err
 	}
+	instanceURL := config.GetSettings().Instance.URL
+	if cmd.InstanceURL != "" {
+		instanceURL = cmd.InstanceURL
+	}
+
+	fmt.Printf("Sending post to %s as %s...", instanceURL, cmd.Email)
 
 	postRequest := models.SendPostRequest{
 		Message: cmd.Message,
 	}
 	raw, err := json.Marshal(postRequest)
 	if err != nil {
-		return err
+		cli.Failure()
+		return fmt.Errorf("Failed to marshal request: %w", err)
 	}
 
 	body := bytes.NewBuffer(raw)
-	instanceURL := config.GetSettings().Instance.URL
-	if cmd.InstanceURL != "" {
-		instanceURL = cmd.InstanceURL
-	}
-
 	url := fmt.Sprintf("%s%s", instanceURL, server.RouteAPISend)
 	r, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
-		return err
+		cli.Failure()
+		return fmt.Errorf("Failed to create HTTP request: %w", err)
 	}
 	if err := sshClient.SignRequest(r, body.Bytes()); err != nil {
-		return err
+		cli.Failure()
+		return fmt.Errorf("Failed to sign request: %w", err)
 	}
 
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
-		return err
+		cli.Failure()
+		return fmt.Errorf("Failed to send HTTP request: %w", err)
 	}
 
-	log.Println(res.Status)
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		return err
+	if res.StatusCode != http.StatusOK {
+		cli.Failure()
+		return fmt.Errorf("Server returned an error: %s", res.Status)
 	}
-	log.Println(string(resBody))
+
+	cli.Success()
 
 	return nil
 }
