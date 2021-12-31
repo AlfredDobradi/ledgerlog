@@ -19,8 +19,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-var errNotImplemented = fmt.Errorf("Not implemented")
-
 type Conn struct {
 	*pgx.Conn
 }
@@ -237,17 +235,6 @@ func (c *Conn) FindUser(filter map[string]string) (models.User, error) {
 	}
 
 	return user, nil
-}
-
-func (c *Conn) getUserInTx(tx pgx.Tx, id uuid.UUID) (models.User, error) {
-	row := tx.QueryRow(context.TODO(), "SELECT * FROM snapshot_users WHERE id = $1::uuid", id)
-	u := models.User{}
-	err := row.Scan(&u.ID, &u.Email, &u.PreferredName, &u.PublicKey, &u.CreatedAt, &u.UpdatedAt)
-	if err != nil {
-		return models.User{}, err
-	}
-
-	return u, nil
 }
 
 func (c *Conn) appendToLedger(tx pgx.Tx, content string, prev uuid.UUID, subject uuid.UUID, kind config.SubjectKind) error {
