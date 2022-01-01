@@ -50,7 +50,8 @@ type PostgresSettings struct {
 }
 
 type SiteSettings struct {
-	Title string
+	Title      string
+	PublicPath string `toml:"public_path"`
 }
 
 func Parse(path string) error {

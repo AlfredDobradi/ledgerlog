@@ -22,6 +22,7 @@ type StartCmd struct {
 func (cmd *StartCmd) Run(ctx *Context) error {
 	applyDatabaseConfig()
 	applyDaemonConfig(cmd.IP, cmd.Port)
+	applySiteConfig()
 
 	s := server.New()
 
@@ -87,4 +88,8 @@ func applyDaemonConfig(ipArg config.IPAddress, portArg config.Port) {
 		port = portArg
 	}
 	server.SetPort(port)
+}
+
+func applySiteConfig() {
+	server.SetPublicPath(config.GetSettings().Site.PublicPath)
 }

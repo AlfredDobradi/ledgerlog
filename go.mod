@@ -13,6 +13,7 @@ require (
 	github.com/cockroachdb/cockroach-go/v2 v2.2.5
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/google/uuid v1.3.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/magefile/mage v1.12.1
 )

@@ -5,10 +5,12 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -22,17 +24,22 @@ import (
 const (
 	RouteAPIRegister string = "/api/register"
 	RouteAPISend     string = "/api/send"
+	RouteAPIWS       string = "/api/stream"
 	RouteAPIPosts    string = "/api"
 	RouteIndex       string = "/"
 
 	PostsPerPage int = 30
+
+	FetchMaxErrors int = 3
 )
 
-// TODO use FS
-//go:embed templates/index.gohtml
-var indexTemplate string
-
 type Handler struct{}
+
+func NewHandler() *Handler {
+	h := &Handler{}
+
+	return h
+}
 
 func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	db, err := database.GetDB()
@@ -188,7 +195,14 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
-	tpl, err := template.New("index").Parse(indexTemplate)
+	indexTemplate, err := os.ReadFile(fmt.Sprintf("%s/templates/index.gohtml", PublicPath()))
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tpl, err := template.New("index").Parse(string(indexTemplate))
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
