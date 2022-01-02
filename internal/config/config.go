@@ -39,14 +39,16 @@ type BadgerSettings struct {
 }
 
 type PostgresSettings struct {
-	User        string
-	Password    string
-	Host        string
-	Port        string
-	Database    string
-	SSLMode     string `toml:"ssl_mode"`
-	SSLRootCert string `toml:"ssl_root_cert"`
-	Cluster     string
+	User               string
+	Password           string
+	Host               string
+	Port               string
+	Database           string
+	SSLMode            string `toml:"ssl_mode"`
+	SSLRootCert        string `toml:"ssl_root_cert"`
+	Cluster            string
+	MinimumConnections int32 `toml:"minimum_connections"`
+	MaximumConnections int32 `toml:"maximum_connections"`
 }
 
 type SiteSettings struct {

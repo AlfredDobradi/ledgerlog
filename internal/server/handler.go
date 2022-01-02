@@ -42,13 +42,17 @@ func NewHandler() *Handler {
 }
 
 func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
-	db, err := database.GetDB()
+	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer db.Close(context.TODO())
+	defer func() {
+		if err := conn.Close(context.TODO()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 
 	auth, err := ssh.GetAuthFromRequest(r)
 	if err != nil {
@@ -63,7 +67,7 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := db.FindUser(map[string]string{"email": auth.Email})
+	user, err := conn.FindUser(map[string]string{"email": auth.Email})
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -90,7 +94,7 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postRequest.Owner = user.ID
-	if err := db.AddPost(postRequest); err != nil {
+	if err := conn.AddPost(postRequest); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -100,13 +104,17 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
-	db, err := database.GetDB()
+	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer db.Close(context.TODO())
+	defer func() {
+		if err := conn.Close(context.TODO()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -128,7 +136,7 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db.RegisterUser(request); err != nil {
+	if err := conn.RegisterUser(request); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -149,13 +157,17 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
-	db, err := database.GetDB()
+	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer db.Close(context.TODO())
+	defer func() {
+		if err := conn.Close(context.TODO()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 
 	if err := r.ParseForm(); err != nil {
 		log.Println(err)
@@ -171,7 +183,7 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		pageNum = 1
 	}
-	d, err := db.GetPosts(int(pageNum), PostsPerPage)
+	d, err := conn.GetPosts(int(pageNum), PostsPerPage)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

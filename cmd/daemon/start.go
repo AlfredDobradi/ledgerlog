@@ -73,6 +73,8 @@ func applyDatabaseConfig() {
 		cockroach.SetSSLMode(dbConf.Postgres.SSLMode)
 		cockroach.SetSSLRootCert(dbConf.Postgres.SSLRootCert)
 		cockroach.SetCluster(dbConf.Postgres.Cluster)
+		cockroach.SetMinConnections(dbConf.Postgres.MinimumConnections)
+		cockroach.SetMaxConnections(dbConf.Postgres.MaximumConnections)
 	}
 }
 

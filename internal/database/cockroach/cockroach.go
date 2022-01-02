@@ -15,26 +15,40 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
 	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/crypto/ssh"
 )
 
 type Conn struct {
-	*pgx.Conn
+	*pgxpool.Conn
 }
 
-func GetConnection() (*Conn, error) {
-	connectionString := buildConnectionString()
+var pool *pgxpool.Pool
 
-	c, err := pgx.Connect(context.Background(), connectionString)
+func GetConnection(ctx context.Context) (*Conn, error) {
+	if pool == nil {
+		poolConfig, err := pgxpool.ParseConfig(buildConnectionString())
+		if err != nil {
+			return nil, err
+		}
+		poolConfig.MinConns = MinConnections()
+		poolConfig.MaxConns = MaxConnections()
+		pool, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	c, err := pool.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	if err := c.Ping(context.TODO()); err != nil {
-		return nil, err
-	}
-
 	return &Conn{c}, nil
+}
+
+func (c *Conn) Close(context.Context) error {
+	c.Release()
+	return nil
 }
 
 func Close(wg *sync.WaitGroup) error {
