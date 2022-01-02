@@ -169,9 +169,8 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 
 	pageNum, err := strconv.ParseInt(page, 10, 32)
 	if err != nil {
-		pageNum = 0
+		pageNum = 1
 	}
-
 	d, err := db.GetPosts(int(pageNum), PostsPerPage)
 	if err != nil {
 		log.Println(err)

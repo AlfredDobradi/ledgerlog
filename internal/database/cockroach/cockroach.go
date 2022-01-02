@@ -79,7 +79,12 @@ func (c *Conn) GetPosts(page, num int) ([]models.PostDisplay, error) {
 	posts := make([]models.PostDisplay, 0)
 
 	err := crdbpgx.ExecuteTx(context.TODO(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		rows, err := tx.Query(context.TODO(), "SELECT sp.id, sp.post, sp.created_at, su.id, su.preferred_name, su.public_key FROM snapshot_posts sp JOIN snapshot_users su ON sp.idowner = su.id ORDER BY created_at DESC LIMIT $1 OFFSET $2", num, offset)
+		rows, err := tx.Query(context.TODO(), `SELECT sp.id, sp.post, sp.created_at, su.id, su.preferred_name, su.public_key
+		FROM snapshot_posts sp
+		JOIN snapshot_users su ON sp.idowner = su.id
+		ORDER BY created_at DESC
+		LIMIT $1
+		OFFSET $2`, num, offset)
 		if err != nil {
 			return err
 		}
@@ -98,8 +103,8 @@ func (c *Conn) GetPosts(page, num int) ([]models.PostDisplay, error) {
 			}
 
 			row.UserFingerprint = ssh.FingerprintSHA256(pubKey)
+			posts = append(posts, row)
 		}
-		posts = append(posts, row)
 		return nil
 	})
 	if err != nil {
