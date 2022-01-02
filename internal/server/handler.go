@@ -44,7 +44,7 @@ func NewHandler() (*Handler, error) {
 func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.String()
 	timingStart := time.Now()
-	gatherers.counters[EndpointCalls].WithLabelValues(url).Inc()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
@@ -53,7 +53,7 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		gatherers.histograms[EndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 		if err := conn.Close(context.TODO()); err != nil {
 			log.Printf("Error closing connection: %v", err)
 		}
@@ -119,7 +119,7 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.String()
 	timingStart := time.Now()
-	gatherers.counters[EndpointCalls].WithLabelValues(url).Inc()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
@@ -128,7 +128,7 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		gatherers.histograms[EndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 		if err := conn.Close(context.TODO()); err != nil {
 			log.Printf("Error closing connection: %v", err)
 		}
@@ -182,7 +182,7 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.String()
 	timingStart := time.Now()
-	gatherers.counters[EndpointCalls].WithLabelValues(url).Inc()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
@@ -191,7 +191,7 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		gatherers.histograms[EndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 		if err := conn.Close(context.TODO()); err != nil {
 			log.Printf("Error closing connection: %v", err)
 		}
@@ -239,7 +239,7 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.String()
 	timingStart := time.Now()
-	gatherers.counters[EndpointCalls].WithLabelValues(url).Inc()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	indexTemplate, err := os.ReadFile(fmt.Sprintf("%s/templates/index.gohtml", PublicPath()))
 	if err != nil {
 		log.Println(err)
@@ -248,7 +248,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		gatherers.histograms[EndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 	}()
 
 	tpl, err := template.New("index").Parse(string(indexTemplate))
@@ -275,8 +275,4 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(output.Bytes()) // nolint
-}
-
-func gatherEndpointError(url string, code int) {
-	gatherers.counters[EndpointErrors].WithLabelValues(url).Inc()
 }
