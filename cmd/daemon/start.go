@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -24,7 +25,10 @@ func (cmd *StartCmd) Run(ctx *Context) error {
 	applyDaemonConfig(cmd.IP, cmd.Port)
 	applySiteConfig()
 
-	s := server.New()
+	s, err := server.New()
+	if err != nil {
+		log.Panicln(err)
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)

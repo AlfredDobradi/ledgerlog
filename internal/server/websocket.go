@@ -22,21 +22,28 @@ type PostUpdate struct {
 
 func (h *Handler) handlePostsSocket(w http.ResponseWriter, r *http.Request) {
 	connID := uuid.New()
+	gatherers.counters[metricWebsocketConnectionsTotal].WithLabelValues(r.URL.String()).Inc()
+	gatherers.gauges[metricWebsocketConnectionsCurrent].WithLabelValues(r.URL.String(), connID.String()).Inc()
 	connTime := time.Now()
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherWebsocketError(r.URL.String(), http.StatusInternalServerError)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		gatherers.gauges[metricWebsocketConnectionsCurrent].WithLabelValues(r.URL.String(), connID.String()).Dec()
+		conn.Close()
+	}()
 
-	log.Printf("[%s] New connection established", connID.String())
+	// log.Printf("[%s] New connection established", connID.String())
 
 	firstUpdate, err := h.checkPosts(connID, 30, time.Unix(0, 0))
 	if err != nil {
 		log.Println(err)
 		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error())) // nolint
+		gatherWebsocketError(r.URL.String(), websocket.CloseInternalServerErr)
 		return
 	}
 	lastUpdate := time.Unix(0, 0)
@@ -46,6 +53,7 @@ func (h *Handler) handlePostsSocket(w http.ResponseWriter, r *http.Request) {
 	if err := conn.WriteJSON(firstUpdate); err != nil {
 		log.Println(err)
 		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error())) // nolint
+		gatherWebsocketError(r.URL.String(), websocket.CloseInternalServerErr)
 		return
 	}
 
@@ -56,7 +64,8 @@ func (h *Handler) handlePostsSocket(w http.ResponseWriter, r *http.Request) {
 		dur := time.Since(connTime)
 		stop <- struct{}{}
 		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "closed")) // nolint
-		log.Printf("[%s] Closed connection after %s", connID, dur)
+		gatherers.histograms[metricWebsocketConnectionDurations].WithLabelValues(r.URL.String()).Observe(float64(dur))
+		// log.Printf("[%s] Closed connection after %s", connID, dur)
 		return nil
 	})
 
@@ -68,12 +77,14 @@ func (h *Handler) handlePostsSocket(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Println(err)
 					conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error())) // nolint
+					gatherWebsocketError(r.URL.String(), websocket.CloseInternalServerErr)
 					return
 				}
 				if len(update.Posts) > 0 {
 					if err := conn.WriteJSON(update); err != nil {
 						log.Println(err)
 						conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error())) // nolint
+						gatherWebsocketError(r.URL.String(), websocket.CloseInternalServerErr)
 						return
 					}
 					lastUpdate = update.Posts[0].Timestamp
@@ -90,6 +101,7 @@ func (h *Handler) handlePostsSocket(w http.ResponseWriter, r *http.Request) {
 		err := conn.ReadJSON(&msg)
 		if err != nil && !errors.Is(err, &websocket.CloseError{}) {
 			conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error())) // nolint
+			gatherWebsocketError(r.URL.String(), websocket.CloseInternalServerErr)
 			return
 		}
 	}

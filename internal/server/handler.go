@@ -35,20 +35,25 @@ const (
 
 type Handler struct{}
 
-func NewHandler() *Handler {
+func NewHandler() (*Handler, error) {
 	h := &Handler{}
 
-	return h
+	return h, nil
 }
 
 func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.String()
+	timingStart := time.Now()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 	defer func() {
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 		if err := conn.Close(context.TODO()); err != nil {
 			log.Printf("Error closing connection: %v", err)
 		}
@@ -58,12 +63,15 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Error reading body", http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -71,18 +79,21 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
 	if user.PublicKey == nil {
 		log.Println("Auth failed")
 		http.Error(w, "Auth failed", http.StatusForbidden)
+		gatherEndpointError(url, http.StatusForbidden)
 		return
 	}
 
 	if err := user.PublicKey.Verify(data, auth.Signature); err != nil {
 		log.Println(err)
 		http.Error(w, "Invalid signature", http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -90,6 +101,7 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(data, &postRequest); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -97,6 +109,7 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	if err := conn.AddPost(postRequest); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -104,13 +117,18 @@ func (h *Handler) handleAPISend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.String()
+	timingStart := time.Now()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 	defer func() {
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 		if err := conn.Close(context.TODO()); err != nil {
 			log.Printf("Error closing connection: %v", err)
 		}
@@ -120,6 +138,7 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -127,18 +146,21 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &request); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
 	if _, err := ssh.ParsePublicKey([]byte(request.PublicKey)); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
 	if err := conn.RegisterUser(request); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -150,6 +172,7 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -157,13 +180,18 @@ func (h *Handler) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.String()
+	timingStart := time.Now()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	conn, err := database.GetConnection(context.TODO())
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 	defer func() {
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
 		if err := conn.Close(context.TODO()); err != nil {
 			log.Printf("Error closing connection: %v", err)
 		}
@@ -172,6 +200,7 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 	page := r.Form.Get("page")
@@ -187,6 +216,7 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -198,6 +228,7 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -206,17 +237,25 @@ func (h *Handler) handleAPIPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.String()
+	timingStart := time.Now()
+	gatherers.counters[metricEndpointCalls].WithLabelValues(url).Inc()
 	indexTemplate, err := os.ReadFile(fmt.Sprintf("%s/templates/index.gohtml", PublicPath()))
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
+	defer func() {
+		gatherers.histograms[metricEndpointCallDurations].WithLabelValues(url).Observe(float64(time.Since(timingStart)))
+	}()
 
 	tpl, err := template.New("index").Parse(string(indexTemplate))
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 
@@ -232,6 +271,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if err := tpl.Execute(output, pageData); err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gatherEndpointError(url, http.StatusInternalServerError)
 		return
 	}
 	w.Write(output.Bytes()) // nolint

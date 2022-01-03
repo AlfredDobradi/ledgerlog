@@ -11,6 +11,8 @@ import (
 	"github.com/AlfredDobradi/ledgerlog/internal/config"
 	"github.com/gorilla/mux"
 	_ "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Service struct {
@@ -20,10 +22,20 @@ type Service struct {
 
 type Option func(*Service) error
 
-func New() *Service {
+func New() (*Service, error) {
 	m := mux.NewRouter()
-	h := NewHandler()
+	h, err := NewHandler()
+	if err != nil {
+		return nil, err
+	}
 
+	m.Handle("/metrics", promhttp.HandlerFor(
+		prometheus.DefaultGatherer,
+		promhttp.HandlerOpts{
+			Registry:          prometheus.DefaultRegisterer,
+			EnableOpenMetrics: false,
+		},
+	))
 	m.HandleFunc(RouteAPISend, h.handleAPISend)
 	m.HandleFunc(RouteAPIRegister, h.handleAPIRegister)
 	m.HandleFunc(RouteAPIPosts, h.handleAPIPosts)
@@ -49,7 +61,7 @@ func New() *Service {
 		}
 	}()
 
-	return s
+	return s, nil
 }
 
 func (s *Service) Shutdown(ctx context.Context, wg *sync.WaitGroup) error {
