@@ -2,6 +2,18 @@
 
 <!--- next entry here -->
 
+## 0.4.0
+2022-01-03
+
+### Features
+
+- Implementing websocket handler (e40b4126790e6c3cab65958d988607032243d51c)
+- Use connection pools (019f923a03b5ce6f3696d675bfed054aab0048ef)
+
+### Fixes
+
+- Fix post loop (97e5c25b67c48b8b736643deeb01b2b5800912ce)
+
 ## 0.3.0
 2021-12-31
 
