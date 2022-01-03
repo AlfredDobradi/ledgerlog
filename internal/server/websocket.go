@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -95,13 +96,18 @@ func (h *Handler) handlePostsSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) checkPosts(connID uuid.UUID, maxnum int, since time.Time) (PostUpdate, error) {
-	log.Printf("[%s] Checking for posts since %s...", connID.String(), since.Format(time.RFC3339))
-	db, err := database.GetDB()
+	// log.Printf("[%s] Checking for posts since %s...", connID.String(), since.Format(time.RFC3339))
+	conn, err := database.GetConnection(context.TODO())
+	defer func() {
+		if err := conn.Close(context.TODO()); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
 	if err != nil {
 		return PostUpdate{}, err
 	}
 
-	posts, allPosts, err := db.GetPostsSince(maxnum, since)
+	posts, allPosts, err := conn.GetPostsSince(maxnum, since)
 	if err != nil {
 		return PostUpdate{}, err
 	}

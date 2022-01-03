@@ -16,7 +16,7 @@ var (
 	errInvalidDriver = fmt.Errorf("Invalid database driver specified")
 )
 
-type DB interface {
+type Connection interface {
 	AddPost(request models.SendPostRequest) error
 	GetPosts(pageNum int, postsPerPage int) ([]models.PostDisplay, error)
 	GetPostsSince(max int, since time.Time) ([]models.PostDisplay, int, error)
@@ -26,14 +26,14 @@ type DB interface {
 	Close(context context.Context) error
 }
 
-func GetDB() (DB, error) {
-	var db DB
+func GetConnection(ctx context.Context) (Connection, error) {
+	var db Connection
 	var err error
 	switch config.GetSettings().Database.Driver {
 	// case config.DriverBadger:
 	// 	db, err = badgerdb.GetConnection()
 	case config.DriverCockroach:
-		db, err = cockroach.GetConnection()
+		db, err = cockroach.GetConnection(ctx)
 	default:
 		err = errInvalidDriver
 	}
