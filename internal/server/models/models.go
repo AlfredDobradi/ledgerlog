@@ -28,6 +28,10 @@ type SendPostResponse struct {
 	Message   string `json:"message"`
 }
 
+type AddChannel struct {
+	ChannelName string `json:"channel_name"`
+}
+
 type Post struct {
 	ID        uuid.UUID `json:"id"`
 	Timestamp time.Time `json:"timestamp"`

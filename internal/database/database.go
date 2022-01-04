@@ -18,6 +18,7 @@ var (
 
 type Connection interface {
 	AddPost(request models.SendPostRequest) error
+	AddChannel(request models.AddChannel) error
 	GetPosts(pageNum int, postsPerPage int) ([]models.PostDisplay, error)
 	GetPostsSince(max int, since time.Time) ([]models.PostDisplay, int, error)
 	RegisterUser(request models.RegisterRequest) error

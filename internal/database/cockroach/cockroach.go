@@ -220,6 +220,36 @@ func (c *Conn) GetPublicKey(email string) (ssh.PublicKey, error) {
 	return _ssh.ParsePublicKey([]byte(public_key))
 }
 
+func (c *Conn) AddChannel(request models.AddChannel) error {
+	return crdbpgx.ExecuteTx(context.TODO(), c, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		existsRow := tx.QueryRow(context.TODO(), "SELECT id::uuid FROM snapshot_channels WHERE tag = $1", request.ChannelName)
+		var id uuid.UUID
+		if err := existsRow.Scan(&id); err == nil {
+			return fmt.Errorf("The channel %s already exists", request.ChannelName)
+		} else if err != pgx.ErrNoRows {
+			return fmt.Errorf("Error querying channel: %w", err)
+		}
+
+		channelID := uuid.New()
+		_, err := tx.Exec(context.TODO(), "INSERT INTO snapshot_channels (id, tag) VALUES ($1::uuid, $2)", channelID, request.ChannelName)
+		if err != nil {
+			return fmt.Errorf("Failed to add channel to database: %w", err)
+		}
+
+		prev, err := c.getLastEntryUUID(tx)
+		if err != nil {
+			return fmt.Errorf("Error getting the previous ledger entry ID: %w", err)
+		}
+
+		j, err := json.Marshal(request)
+		if err != nil {
+			return fmt.Errorf("Error marshaling request: %w", err)
+		}
+
+		return c.appendToLedger(tx, string(j), prev, channelID, config.KindChannel)
+	})
+}
+
 func buildConnectionString() string {
 	connectionURL := url.URL{}
 	connectionURL.Scheme = "postgresql"

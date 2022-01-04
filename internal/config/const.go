@@ -6,6 +6,7 @@ const (
 )
 
 const (
-	KindUser SubjectKind = "user"
-	KindPost SubjectKind = "post"
+	KindUser    SubjectKind = "user"
+	KindPost    SubjectKind = "post"
+	KindChannel SubjectKind = "channel"
 )
